@@ -1,0 +1,501 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// 1. IDENTITY & ACCESS CONTROL (RBAC)
+// -------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String     @unique
+  phone        String?
+  passwordHash String
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deletedAt    DateTime?
+
+  userRoles    UserRole[]
+  auditLogs    AuditLog[]
+  blogPosts    BlogPost[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([isActive])
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  description     String?
+  isSystem        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  action          String           // CREATE, READ, UPDATE, DELETE, MANAGE
+  resource        String           // products, users, categories, orders, settings, etc.
+  description     String?
+  createdAt       DateTime         @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@unique([action, resource])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  assignedAt   DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+// -------------------------------------------------------------
+// 2. PRODUCT CATALOG & PRICING
+// -------------------------------------------------------------
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  image       String?
+  parentId    String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+  discountCategories DiscountCategory[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  shortDescription String?
+  description      String
+  sku              String            @unique
+  categoryId       String
+  basePrice        Decimal           @db.Decimal(14, 2)
+  unit             String            @default("kg")
+  minimumOrder     Decimal           @default(1.0) @db.Decimal(10, 2)
+  isAvailable      Boolean           @default(true)
+  isFeatured       Boolean           @default(false)
+  seoTitle         String?
+  seoDescription   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  category         Category          @relation(fields: [categoryId], references: [id])
+  images           ProductImage[]
+  prices           ProductPrice[]
+  discountProducts DiscountProduct[]
+  campaignProducts CampaignProduct[]
+  quotationItems   QuotationItem[]
+
+  @@index([slug])
+  @@index([sku])
+  @@index([categoryId])
+  @@index([isAvailable])
+  @@index([isFeatured])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductPrice {
+  id            String    @id @default(cuid())
+  productId     String
+  price         Decimal   @db.Decimal(14, 2)
+  unit          String    @default("kg")
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isActive])
+}
+
+// -------------------------------------------------------------
+// 3. DISCOUNTS & SEASONAL CAMPAIGNS
+// -------------------------------------------------------------
+
+model Discount {
+  id          String             @id @default(cuid())
+  code        String?            @unique
+  name        String
+  type        String             // PERCENTAGE, FIXED_AMOUNT
+  value       Decimal            @db.Decimal(14, 2)
+  startAt     DateTime?
+  endAt       DateTime?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  discountProducts   DiscountProduct[]
+  discountCategories DiscountCategory[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model DiscountProduct {
+  id         String   @id @default(cuid())
+  discountId String
+  productId  String
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([discountId, productId])
+}
+
+model DiscountCategory {
+  id         String   @id @default(cuid())
+  discountId String
+  categoryId String
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([discountId, categoryId])
+}
+
+model Campaign {
+  id          String            @id @default(cuid())
+  title       String
+  slug        String            @unique
+  description String
+  image       String
+  badge       String
+  startAt     DateTime?
+  endAt       DateTime?
+  isActive    Boolean           @default(true)
+  sortOrder   Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+
+  campaignProducts CampaignProduct[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model CampaignProduct {
+  id               String   @id @default(cuid())
+  campaignId       String
+  productId        String
+  highlightDiscount String?
+  sortOrder        Int      @default(0)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, productId])
+}
+
+// -------------------------------------------------------------
+// 4. QUOTATION & CONTACT INQUIRIES
+// -------------------------------------------------------------
+
+model QuotationRequest {
+  id           String          @id @default(cuid())
+  customerName String
+  companyName  String?
+  phone        String
+  email        String?
+  notes        String?
+  status       String          @default("PENDING") // PENDING, REVIEWING, QUOTED, ACCEPTED, REJECTED, CANCELLED
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  deletedAt    DateTime?
+
+  items        QuotationItem[]
+
+  @@index([phone])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model QuotationItem {
+  id                 String           @id @default(cuid())
+  quotationRequestId String
+  productId          String
+  requestedWeight    Decimal          @db.Decimal(10, 2)
+  quantity           Int              @default(1)
+  unit               String           @default("kg")
+  notes              String?
+
+  quotationRequest QuotationRequest @relation(fields: [quotationRequestId], references: [id], onDelete: Cascade)
+  product          Product          @relation(fields: [productId], references: [id])
+
+  @@index([quotationRequestId])
+  @@index([productId])
+}
+
+model ContactRequest {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  company   String?
+  subject   String
+  message   String
+  status    String   @default("NEW") // NEW, IN_PROGRESS, RESOLVED, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// -------------------------------------------------------------
+// 5. LANDING PAGE CONTENT & CMS
+// -------------------------------------------------------------
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String
+  answer      String
+  category    String   @default("عمومی")
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublished])
+}
+
+model CustomerPartner {
+  id          String   @id @default(cuid())
+  name        String
+  logo        String
+  website     String?
+  description String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  label       String
+  value       String
+  suffix      String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+}
+
+model CooperationStep {
+  id          String   @id @default(cuid())
+  stepNumber  Int
+  title       String
+  description String
+  icon        String
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+}
+
+model LandingSection {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  title       String?
+  subtitle    String?
+  badge       String?
+  contentJson Json?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+}
+
+// -------------------------------------------------------------
+// 6. NAVIGATION & SETTINGS
+// -------------------------------------------------------------
+
+model NavigationMenu {
+  id        String           @id @default(cuid())
+  code      String           @unique
+  name      String
+  location  String           @default("HEADER") // HEADER, FOOTER, MOBILE, SIDEBAR
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  items     NavigationItem[]
+
+  @@index([code])
+}
+
+model NavigationItem {
+  id        String           @id @default(cuid())
+  menuId    String
+  label     String
+  url       String
+  parentId  String?
+  sortOrder Int              @default(0)
+  isVisible Boolean          @default(true)
+  target    String           @default("_self")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  menu      NavigationMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent    NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id])
+  children  NavigationItem[] @relation("NavHierarchy")
+
+  @@index([menuId])
+  @@index([parentId])
+}
+
+model SiteSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  type        String   @default("string") // string, number, boolean, json
+  isPublic    Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@index([isPublic])
+}
+
+// -------------------------------------------------------------
+// 7. BLOG FOUNDATION (FOR FUTURE CMS)
+// -------------------------------------------------------------
+
+model BlogPost {
+  id             String             @id @default(cuid())
+  title          String
+  slug           String             @unique
+  excerpt        String?
+  content        String
+  featuredImage  String?
+  status         String             @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  authorId       String?
+  publishedAt    DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  seoTitle       String?
+  seoDescription String?
+
+  author         User?              @relation(fields: [authorId], references: [id])
+  categories     BlogPostCategory[]
+
+  @@index([slug])
+  @@index([status])
+}
+
+model BlogCategory {
+  id          String             @id @default(cuid())
+  name        String
+  slug        String             @unique
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  posts       BlogPostCategory[]
+
+  @@index([slug])
+}
+
+model BlogPostCategory {
+  postId     String
+  categoryId String
+
+  post     BlogPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+}
+
+// -------------------------------------------------------------
+// 8. AUDIT LOGS
+// -------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // PRODUCT_CREATED, LOGIN_SUCCESS, etc.
+  entity    String   // Product, User, QuotationRequest, etc.
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}

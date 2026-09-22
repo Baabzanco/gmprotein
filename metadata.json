@@ -1,0 +1,6 @@
+{
+  "name": "Protein Golmohammadi",
+  "description": "Comprehensive B2B meat supply platform and management dashboard for Protein Golmohammadi with cinematic video hero, quotation engine, and role-based administration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
