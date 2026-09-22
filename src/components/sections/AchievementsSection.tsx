@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AchievementItem } from "../../types";
 import { landingService } from "../../services";
+import { toPersianDigits } from "../../utils/formatters";
 import { TrendingUp } from "lucide-react";
 
 export const AchievementsSection: React.FC = () => {
@@ -114,12 +115,12 @@ const CounterCard: React.FC<CounterCardProps> = ({ item, triggerAnimation, delay
     >
       <div>
         <div className="flex items-baseline gap-1 mb-3">
-          <span className="text-4xl sm:text-5xl font-extrabold text-[var(--text-primary)] tracking-tight font-mono group-hover:text-[#CD78B3] transition-colors">
-            {displayValue}
+          <span className="text-4xl sm:text-5xl font-extrabold text-[var(--text-primary)] tracking-tight group-hover:text-[#CD78B3] transition-colors">
+            {toPersianDigits(displayValue)}
           </span>
           {item.suffix && (
             <span className="text-lg font-bold text-[#CD78B3] font-sans">
-              {item.suffix}
+              {toPersianDigits(item.suffix)}
             </span>
           )}
         </div>

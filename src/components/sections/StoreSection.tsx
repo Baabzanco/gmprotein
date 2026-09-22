@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Product } from "../../types";
 import { productService } from "../../services";
 import { ProductDetailModal } from "../products/ProductDetailModal";
+import { formatPersianNumber, toPersianDigits } from "../../utils/formatters";
 import { ShoppingBag, Filter, FileText, Tag } from "lucide-react";
 
 export const StoreSection: React.FC = () => {
@@ -129,11 +130,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
 
           {product.discount && (
             <span className="absolute top-3 right-3 bg-[#CD78B3] text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md">
-              {product.discount}٪ تخفیف
+              {toPersianDigits(product.discount)}٪ تخفیف
             </span>
           )}
 
-          <span className="absolute bottom-3 right-3 text-[10px] font-mono text-[#CD78B3] bg-[var(--surface-card)]/90 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-[var(--border)] uppercase shadow-xs">
+          <span className="absolute bottom-3 right-3 text-[10px] text-[#CD78B3] bg-[var(--surface-card)]/90 backdrop-blur-sm px-2.5 py-0.5 rounded-full border border-[var(--border)] uppercase shadow-xs">
             {product.category}
           </span>
         </div>
@@ -151,16 +152,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) => {
           {product.pricePerKg ? (
             <div className="flex items-baseline justify-between pt-3 border-t border-[var(--border)]">
               <span className="text-[11px] text-[var(--text-muted)] font-light">قیمت هر کیلوگرم:</span>
-              <div className="text-left font-mono">
+              <div className="text-left">
                 {product.discount && (
                   <span className="text-[11px] text-[var(--text-muted)] line-through block">
-                    {product.pricePerKg.toLocaleString("fa-IR")}
+                    {formatPersianNumber(product.pricePerKg)}
                   </span>
                 )}
                 <span className="text-sm font-bold text-[var(--text-primary)]">
-                  {(
+                  {formatPersianNumber(
                     product.pricePerKg * (1 - (product.discount || 0) / 100)
-                  ).toLocaleString("fa-IR")}{" "}
+                  )}{" "}
                   <span className="text-[10px] text-[var(--text-muted)] font-sans">تومان</span>
                 </span>
               </div>

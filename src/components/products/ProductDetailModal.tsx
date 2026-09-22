@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Product } from "../../types";
 import { quotationService } from "../../services";
+import { formatPersianNumber, toPersianDigits } from "../../utils/formatters";
 import { X, CheckCircle, Scale, Package, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
 
 interface ProductDetailModalProps {
@@ -153,7 +154,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                       }`}
                     >
                       <Scale className="w-3.5 h-3.5" />
-                      <span>{w} کیلو</span>
+                      <span>{toPersianDigits(w)} کیلو</span>
                     </button>
                   ))}
                 </div>
@@ -173,8 +174,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                   >
                     -
                   </button>
-                  <span className="font-mono font-bold text-[var(--text-primary)] text-sm w-6 text-center">
-                    {packageCount}
+                  <span className="font-bold text-[var(--text-primary)] text-sm w-6 text-center">
+                    {toPersianDigits(packageCount)}
                   </span>
                   <button
                     type="button"
@@ -191,13 +192,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                 <div className="p-4 rounded-2xl bg-[var(--badge-bg)] border border-[var(--badge-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--text-muted)] block text-[11px]">مبلغ برآوردی پیش‌فاکتور:</span>
-                    <span className="text-[var(--text-primary)] text-base font-extrabold font-mono">
-                      {totalEstimatedAmount.toLocaleString("fa-IR")}
+                    <span className="text-[var(--text-primary)] text-base font-extrabold">
+                      {formatPersianNumber(totalEstimatedAmount)}
                     </span>{" "}
                     <span className="text-[var(--text-secondary)]">تومان</span>
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)]">
-                    مجموع وزن: {selectedWeightKg * packageCount} کیلوگرم
+                    مجموع وزن: {toPersianDigits(selectedWeightKg * packageCount)} کیلوگرم
                   </span>
                 </div>
               ) : null}

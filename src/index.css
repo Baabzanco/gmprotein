@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Vazirmatn', monospace;
 }
 
 @layer base {
   :root,
   [data-theme="light"],
   html.light {
-    --font-family: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-sans: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Vazirmatn', monospace;
     --color-primary: #124A57;
     --color-accent: #CD78B3;
 
@@ -52,8 +54,9 @@
 
   [data-theme="dark"],
   html.dark {
-    --font-family: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-sans: 'Vazirmatn', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Vazirmatn', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Vazirmatn', monospace;
     --color-primary: #124A57;
     --color-accent: #CD78B3;
 
@@ -93,16 +96,27 @@
     --tag-text: #CBD5E1;
   }
 
+  *,
+  *::before,
+  *::after {
+    font-feature-settings: "ss01" 1, "locl" 1;
+    -webkit-font-feature-settings: "ss01" 1, "locl" 1;
+    -moz-font-feature-settings: "ss01" 1, "locl" 1;
+  }
+
   html,
   body {
     font-family: var(--font-family);
+    font-feature-settings: "ss01" 1, "locl" 1;
+    -webkit-font-feature-settings: "ss01" 1, "locl" 1;
+    -moz-font-feature-settings: "ss01" 1, "locl" 1;
     scroll-behavior: smooth;
     overflow-x: hidden;
     background-color: var(--bg-primary);
     color: var(--text-primary);
   }
 
-  /* Strict typography inheritance across landing page & management dashboard */
+  /* Strict typography and Persian digits inheritance across all elements */
   button,
   input,
   optgroup,
@@ -112,8 +126,29 @@
   [role="dialog"],
   table,
   th,
-  td {
+  td,
+  span,
+  p,
+  div,
+  label,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: inherit;
+    font-feature-settings: "ss01" 1, "locl" 1;
+    -webkit-font-feature-settings: "ss01" 1, "locl" 1;
+    -moz-font-feature-settings: "ss01" 1, "locl" 1;
+  }
+
+  /* Preserve LTR for strictly necessary code/technical fields */
+  .latin-digits,
+  .ltr-digits {
+    font-feature-settings: "ss01" 0, "locl" 0;
+    -webkit-font-feature-settings: "ss01" 0, "locl" 0;
+    -moz-font-feature-settings: "ss01" 0, "locl" 0;
   }
 
   /* Smooth transition between themes without disrupting scroll or canvas/video */

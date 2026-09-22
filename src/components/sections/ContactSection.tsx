@@ -70,11 +70,10 @@ export const ContactSection: React.FC = () => {
                 <div>
                   <span className="text-xs text-[var(--text-muted)] block">خط ویژه سفارشات تلفنی:</span>
                   <a
-                    href="tel:02122000000"
-                    dir="ltr"
-                    className="text-base font-bold text-[var(--text-primary)] hover:text-[#CD78B3] font-mono transition-colors"
+                    href="tel:02122003344"
+                    className="text-base font-bold text-[var(--text-primary)] hover:text-[#CD78B3] transition-colors"
                   >
-                    021 - 2200 0000
+                    ۰۲۱-۲۲۰۰۳۳۴۴
                   </a>
                 </div>
               </div>
