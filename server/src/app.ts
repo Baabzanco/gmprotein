@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -10,6 +12,13 @@ import { setupSwagger } from "./config/swagger";
 
 export function createApp(): Express {
   const app = express();
+
+  // Ensure uploads directory exists
+  const uploadsDir = path.resolve(process.cwd(), "uploads");
+  const videosDir = path.join(uploadsDir, "videos");
+  if (!fs.existsSync(videosDir)) {
+    fs.mkdirSync(videosDir, { recursive: true });
+  }
 
   // Trust proxy for rate limiting behind reverse proxies (like Cloud Run / Nginx)
   app.set("trust proxy", 1);
@@ -42,9 +51,22 @@ export function createApp(): Express {
     })
   );
 
-  // Request body parsing with strict limits
-  app.use(express.json({ limit: "2mb" }));
-  app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+  // Serve uploaded static assets with video streaming headers
+  app.use(
+    "/uploads",
+    express.static(uploadsDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".mp4") || filePath.endsWith(".webm") || filePath.endsWith(".mov")) {
+          res.setHeader("Accept-Ranges", "bytes");
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    })
+  );
+
+  // Request body parsing supporting up to 100MB for video uploads
+  app.use(express.json({ limit: "100mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
   // HTTP Request Logging Middleware
   app.use((req: Request, res: Response, next: NextFunction) => {

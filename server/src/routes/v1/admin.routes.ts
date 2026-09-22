@@ -69,13 +69,17 @@ router.post("/campaigns", requireRole("SUPER_ADMIN", "ADMIN", "CONTENT_MANAGER",
   adminController.createCampaign(req, res, next);
 });
 
-// 4. Settings
+// 4. Settings & Media
 router.get("/settings", (req, res, next) => {
   adminController.getSettings(req, res, next);
 });
 
 router.put("/settings", requireRole("SUPER_ADMIN", "ADMIN"), (req, res, next) => {
   adminController.updateSettings(req, res, next);
+});
+
+router.post("/upload-hero-video", requireRole("SUPER_ADMIN", "ADMIN", "CONTENT_MANAGER"), (req, res, next) => {
+  adminController.uploadHeroVideo(req, res, next);
 });
 
 export default router;

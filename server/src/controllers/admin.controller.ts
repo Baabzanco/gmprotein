@@ -1,30 +1,19 @@
+import fs from "fs";
+import path from "path";
 import { Response, NextFunction } from "express";
 import { auditRepository } from "../repositories/audit.repository";
 import { quotationRepository } from "../repositories/quotation.repository";
 import { contactRepository } from "../repositories/contact.repository";
 import { productRepository } from "../repositories/product.repository";
 import { userRepository } from "../repositories/user.repository";
+import { landingRepository } from "../repositories/landing.repository";
 import { sendSuccess, sendError } from "../utils/response";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { isDatabaseConnected, getPrismaClient } from "../config/prisma";
+import { loadPersistentSettings, savePersistentSettings } from "../utils/persistentSettings";
 
-// Safe editable system settings store
-let currentSettings = {
-  siteName: "پروتئین گلمحمدی",
-  brandTagline: "برش‌های تخصصی، طعم اصیل و زنجیره سرد استاندارد",
-  phone: "۰۲۱-۲۲۰۰۳۳۴۴",
-  mobile: "۰۹۱۲۰۰۰۰۰۰۰",
-  email: "info@golmohamadi.com",
-  address: "تهران، خیابان شریعتی، بالاتر از پل رومی، مجتمع پروتئین گلمحمدی",
-  primaryColor: "#124A57",
-  accentColor: "#CD78B3",
-  defaultMetaTitle: "پروتئین گلمحمدی | تجربه گوشت لوکس و استیک‌های تخصصی",
-  defaultMetaDescription: "تأمین‌کننده مستقیم برش‌های استیک گوساله، دنده شاندیزی و گوشت پرواری دستچین.",
-  orderNotice: "کلیه سفارش‌های رسمی تهران ظرف کمتر از ۴ ساعت با خودروهای یخچال‌دار اختصاصی تحویل می‌گردند.",
-  enablePublicQuotations: true,
-  enableSmsNotifications: true,
-  updatedAt: new Date().toISOString(),
-};
+// Safe editable system settings store with filesystem persistence
+let currentSettings = loadPersistentSettings();
 
 // Discounts store
 let inMemoryDiscounts: any[] = [
@@ -389,9 +378,10 @@ export class AdminController {
     }
   }
 
-  // --- Settings ---
+  // --- Settings & Hero Video Upload ---
   async getSettings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
+      currentSettings = loadPersistentSettings();
       return sendSuccess(res, currentSettings, 200);
     } catch (err: any) {
       next(err);
@@ -400,11 +390,28 @@ export class AdminController {
 
   async updateSettings(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      currentSettings = {
-        ...currentSettings,
-        ...req.body,
-        updatedAt: new Date().toISOString(),
-      };
+      currentSettings = savePersistentSettings(req.body);
+
+      if (req.body.heroVideoUrl) {
+        landingRepository.updateSetting("heroVideoUrl", req.body.heroVideoUrl);
+      }
+
+      if (req.body.heroVideoUrl && isDatabaseConnected()) {
+        try {
+          const prisma = getPrismaClient();
+          await prisma.siteSetting.upsert({
+            where: { key: "heroVideoUrl" },
+            update: { value: req.body.heroVideoUrl, updatedAt: new Date() },
+            create: {
+              id: `set-hero-${Date.now()}`,
+              key: "heroVideoUrl",
+              value: req.body.heroVideoUrl,
+              type: "string",
+              isPublic: true,
+            },
+          });
+        } catch (e) {}
+      }
 
       await auditRepository.log({
         userId: req.user?.id,
@@ -415,6 +422,95 @@ export class AdminController {
       });
 
       return sendSuccess(res, currentSettings, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async uploadHeroVideo(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { fileBase64, fileName, fileType } = req.body;
+      if (!fileBase64) {
+        return sendError(res, "VALIDATION_ERROR", "فایل ویدیو برای بارگذاری ارسال نشده است", 400);
+      }
+
+      // Strip data URL header if present
+      const base64Data = fileBase64.replace(/^data:video\/[a-zA-Z0-9.-]+;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      // Validate size (max 100MB)
+      if (buffer.length > 100 * 1024 * 1024) {
+        return sendError(res, "FILE_TOO_LARGE", "حجم ویدیو نمی‌تواند بیشتر از ۱۰۰ مگابایت باشد", 400);
+      }
+
+      let ext = ".mp4";
+      if (fileName && path.extname(fileName)) {
+        ext = path.extname(fileName).toLowerCase();
+      } else if (fileType === "video/webm") {
+        ext = ".webm";
+      } else if (fileType === "video/quicktime" || fileType === "video/mov") {
+        ext = ".mov";
+      }
+
+      const safeFilename = `hero-video-${Date.now()}${ext}`;
+      const uploadsDir = path.resolve(process.cwd(), "uploads", "videos");
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const filePath = path.join(uploadsDir, safeFilename);
+      fs.writeFileSync(filePath, buffer);
+
+      const videoUrl = `/uploads/videos/${safeFilename}`;
+      currentSettings = savePersistentSettings({
+        heroVideoUrl: videoUrl,
+        heroVideoMetadata: {
+          originalName: fileName || safeFilename,
+          fileName: safeFilename,
+          size: buffer.length,
+          mimeType: fileType || "video/mp4",
+          uploadedAt: new Date().toISOString(),
+        },
+      });
+
+      landingRepository.updateSetting("heroVideoUrl", videoUrl);
+
+      if (isDatabaseConnected()) {
+        try {
+          const prisma = getPrismaClient();
+          await prisma.siteSetting.upsert({
+            where: { key: "heroVideoUrl" },
+            update: { value: videoUrl, updatedAt: new Date() },
+            create: {
+              id: `set-hero-${Date.now()}`,
+              key: "heroVideoUrl",
+              value: videoUrl,
+              type: "string",
+              isPublic: true,
+            },
+          });
+        } catch (dbErr) {}
+      }
+
+      await auditRepository.log({
+        userId: req.user?.id,
+        action: "HERO_VIDEO_UPLOADED",
+        entity: "SiteSetting",
+        entityId: "heroVideoUrl",
+        metadata: { fileName, size: buffer.length, url: videoUrl },
+      });
+
+      return sendSuccess(
+        res,
+        {
+          url: videoUrl,
+          fileName: safeFilename,
+          size: buffer.length,
+          settings: currentSettings,
+          message: "ویدیوی هیروسکشن با موفقیت بارگذاری و بر روی سرور مستقر شد.",
+        },
+        200
+      );
     } catch (err: any) {
       next(err);
     }

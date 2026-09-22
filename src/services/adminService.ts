@@ -213,7 +213,7 @@ export const adminService = {
     return request<any[]>("/admin/system-logs");
   },
 
-  // 9. Site Settings
+  // 9. Site Settings & Video Upload
   async getSettings() {
     return request<any>("/admin/settings");
   },
@@ -222,6 +222,67 @@ export const adminService = {
     return request<any>("/admin/settings", {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  },
+
+  async uploadHeroVideo(
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{ url: string; fileName: string; size: number; settings: any; message: string }> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.round((event.loaded / event.total) * 45);
+          onProgress(percent);
+        }
+      };
+
+      reader.onload = async () => {
+        try {
+          if (onProgress) onProgress(50);
+          const fileBase64 = reader.result as string;
+          const token = localStorage.getItem("pg_admin_token");
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+
+          if (onProgress) onProgress(70);
+
+          const res = await fetch("/api/v1/admin/upload-hero-video", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              fileBase64,
+              fileName: file.name,
+              fileType: file.type,
+            }),
+          });
+
+          if (onProgress) onProgress(90);
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json.success === false) {
+            const errMessage = json.error?.message || `خطای سرور (${res.status})`;
+            throw new ApiError(errMessage, json.error?.code || "UPLOAD_ERROR", res.status);
+          }
+
+          if (onProgress) onProgress(100);
+          resolve(json.data);
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new ApiError("خطا در خواندن فایل ویدیو از مرورگر", "FILE_READ_ERROR", 400));
+      };
+
+      reader.readAsDataURL(file);
     });
   },
 };

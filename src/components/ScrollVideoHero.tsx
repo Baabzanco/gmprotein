@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { siteConfig } from "../config/siteConfig";
 import { ChevronDown, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { landingService } from "../services/landingService";
 
 interface ScrollVideoHeroProps {
   videoSrc?: string;
@@ -10,7 +11,7 @@ interface ScrollVideoHeroProps {
 }
 
 export const ScrollVideoHero: React.FC<ScrollVideoHeroProps> = ({
-  videoSrc = siteConfig.heroVideo,
+  videoSrc,
   scrollMultiplier = siteConfig.heroScrollMultiplier,
   onProgressChange,
 }) => {
@@ -18,6 +19,27 @@ export const ScrollVideoHero: React.FC<ScrollVideoHeroProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafIdRef = useRef<number | null>(null);
+
+  const [activeVideoSrc, setActiveVideoSrc] = useState<string>(
+    videoSrc || siteConfig.heroVideo
+  );
+
+  // Load server-configured hero video if available
+  useEffect(() => {
+    if (videoSrc) {
+      setActiveVideoSrc(videoSrc);
+      return;
+    }
+
+    landingService
+      .getSettings()
+      .then((settings) => {
+        if (settings && settings.heroVideoUrl) {
+          setActiveVideoSrc(settings.heroVideoUrl);
+        }
+      })
+      .catch(() => {});
+  }, [videoSrc]);
 
   // Scroll and scrubbing state stored in refs to prevent unnecessary React re-renders on each frame
   const targetProgressRef = useRef<number>(0);
@@ -166,6 +188,16 @@ export const ScrollVideoHero: React.FC<ScrollVideoHeroProps> = ({
     };
   }, [updateScrollProgress]);
 
+  // Reset states on video source change
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+    setLoadProgress(0);
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [activeVideoSrc]);
+
   // Handle video metadata loaded
   const handleLoadedMetadata = () => {
     const video = videoRef.current;
@@ -231,7 +263,7 @@ export const ScrollVideoHero: React.FC<ScrollVideoHeroProps> = ({
         <video
           id="hero-cinematic-video"
           ref={videoRef}
-          src={videoSrc}
+          src={activeVideoSrc}
           muted
           playsInline
           autoPlay={false}

@@ -1,4 +1,5 @@
 import { getPrismaClient, isDatabaseConnected } from "../config/prisma";
+import { loadPersistentSettings } from "../utils/persistentSettings";
 import {
   FaqDTO,
   CustomerPartnerDTO,
@@ -220,22 +221,43 @@ export class LandingRepository {
   }
 
   async getPublicSettings(): Promise<Record<string, any>> {
+    const persisted = loadPersistentSettings();
     if (isDatabaseConnected()) {
       try {
         const prisma = getPrismaClient();
         const items = await prisma.siteSetting.findMany({
           where: { isPublic: true },
         });
-        return items.reduce((acc, curr) => {
-          acc[curr.key] = curr.value;
-          return acc;
-        }, {} as Record<string, any>);
+        if (items.length > 0) {
+          const dbSettings = items.reduce((acc, curr) => {
+            acc[curr.key] = curr.value;
+            return acc;
+          }, {} as Record<string, any>);
+          return {
+            ...persisted,
+            ...dbSettings,
+          };
+        }
       } catch (err) {}
     }
-    return defaultSettings.reduce((acc, curr) => {
-      acc[curr.key] = curr.value;
-      return acc;
-    }, {} as Record<string, any>);
+    return persisted;
+  }
+
+  async updateSetting(key: string, value: string): Promise<void> {
+    const existing = defaultSettings.find((s) => s.key === key);
+    if (existing) {
+      existing.value = value;
+      existing.updatedAt = new Date().toISOString();
+    } else {
+      defaultSettings.push({
+        id: `set-${Date.now()}`,
+        key,
+        value,
+        type: "string",
+        isPublic: true,
+        updatedAt: new Date().toISOString(),
+      });
+    }
   }
 }
 

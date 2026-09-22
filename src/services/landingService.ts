@@ -122,4 +122,19 @@ export const landingService = {
     }
     return faqData;
   },
+
+  async getSettings(): Promise<Record<string, any>> {
+    try {
+      const res = await fetch("/api/v1/landing/settings");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+      }
+    } catch (err) {
+      // Fallback
+    }
+    return {};
+  },
 };
