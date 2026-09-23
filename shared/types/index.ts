@@ -45,6 +45,28 @@ export interface ApiResponse<T = any> {
   };
 }
 
+export interface PermissionDTO {
+  id: string;
+  code: string;
+  action: string;
+  resource: string;
+  category?: string;
+  description?: string | null;
+}
+
+export interface RoleDTO {
+  id: string;
+  name: string;
+  title?: string;
+  description?: string | null;
+  isSystem: boolean;
+  permissions: string[];
+  permissionDetails?: PermissionDTO[];
+  usersCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserDTO {
   id: string;
   firstName: string;
@@ -52,6 +74,7 @@ export interface UserDTO {
   email: string;
   phone?: string | null;
   isActive: boolean;
+  status: "ACTIVE" | "SUSPENDED";
   lastLoginAt?: string | null;
   roles: string[];
   permissions: string[];
@@ -73,6 +96,26 @@ export interface CategoryDTO {
   updatedAt: string;
 }
 
+export interface ProductPackageOptionDTO {
+  id: string;
+  productId?: string;
+  weightKg: number;
+  label: string;
+  isDefault?: boolean;
+  sortOrder?: number;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductFeatureDTO {
+  id?: string;
+  productId?: string;
+  name: string;
+  value: string;
+  sortOrder?: number;
+}
+
 export interface ProductDTO {
   id: string;
   name: string;
@@ -87,6 +130,9 @@ export interface ProductDTO {
   discountPercentage?: number | null;
   unit: string;
   minimumOrder: number;
+  allowCustomWeight?: boolean;
+  packageOptions?: ProductPackageOptionDTO[];
+  features?: ProductFeatureDTO[];
   isAvailable: boolean;
   isFeatured: boolean;
   seoTitle?: string | null;
@@ -102,13 +148,35 @@ export interface ProductDTO {
   updatedAt: string;
 }
 
+export interface MediaDTO {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  extension: string;
+  size: number;
+  url: string;
+  mediaType: "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER";
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  alt?: string | null;
+  caption?: string | null;
+  referencedBy?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CampaignDTO {
   id: string;
   title: string;
   slug: string;
   description: string;
+  shortDescription?: string | null;
   image: string;
   badge: string;
+  ctaLabel?: string | null;
+  ctaLink?: string | null;
   startAt: string;
   endAt: string;
   isActive: boolean;
@@ -116,7 +184,6 @@ export interface CampaignDTO {
   highlightDiscount?: string;
   features?: string[];
   ctaText?: string;
-  ctaLink?: string;
   expiresAt?: string;
   products?: ProductDTO[];
 }
@@ -129,6 +196,10 @@ export interface QuotationRequestDTO {
   email?: string | null;
   notes?: string | null;
   status: QuotationStatus;
+  followupStatus: "NEEDS_FOLLOW_UP" | "FOLLOWED_UP";
+  followedUpAt?: string | null;
+  followedUpById?: string | null;
+  followedUpByName?: string | null;
   items: {
     id?: string;
     productId: string;
@@ -201,3 +272,62 @@ export interface SiteSettingDTO {
   isPublic: boolean;
   updatedAt: string;
 }
+
+// -------------------------------------------------------------
+// BLOG TYPES (PHASE 4)
+// -------------------------------------------------------------
+
+export interface BlogCategoryDTO {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  isActive: boolean;
+  postCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogTagDTO {
+  id: string;
+  name: string;
+  slug: string;
+  postCount?: number;
+  createdAt: string;
+}
+
+export interface BlogPostDTO {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  content: string;
+  featuredImage?: string | null;
+  status: BlogPostStatus; // DRAFT, PUBLISHED, ARCHIVED
+  authorId?: string | null;
+  authorName?: string | null;
+  publishedAt?: string | null;
+  categoryIds?: string[];
+  categories: BlogCategoryDTO[];
+  tagIds?: string[];
+  tags: BlogTagDTO[];
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  canonicalUrl?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogPostQueryOptions {
+  page?: number;
+  limit?: number;
+  status?: BlogPostStatus;
+  categorySlug?: string;
+  tagSlug?: string;
+  search?: string;
+}
+

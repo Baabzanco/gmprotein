@@ -9,6 +9,7 @@ import { apiLimiter } from "./middleware/rateLimiter";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import v1Routes from "./routes/v1";
 import { setupSwagger } from "./config/swagger";
+import { seoController } from "./controllers/seo.controller";
 
 export function createApp(): Express {
   const app = express();
@@ -89,6 +90,14 @@ export function createApp(): Express {
 
   // Mount API v1 Routes under Rate Limiter
   app.use("/api/v1", apiLimiter, v1Routes);
+
+  // SEO: Dynamic XML Sitemap and Robots.txt
+  app.get("/sitemap.xml", (req: Request, res: Response) => {
+    seoController.getSitemap(req, res);
+  });
+  app.get("/robots.txt", (req: Request, res: Response) => {
+    seoController.getRobotsTxt(req, res);
+  });
 
   // Global API health
   app.get("/api/health", (req: Request, res: Response) => {

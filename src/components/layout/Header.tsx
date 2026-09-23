@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { siteConfig } from "../../config/siteConfig";
-import { Phone, Menu, X, ShoppingBag } from "lucide-react";
+import { Phone, Menu, X, ShoppingBag, BookOpen } from "lucide-react";
 import { ThemeToggle } from "../common/ThemeToggle";
 import { useTheme } from "../../context/ThemeContext";
+import { useRouter } from "../../context/RouterContext";
 
 export const Header: React.FC = () => {
   const [isPastHero, setIsPastHero] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const { isDark } = useTheme();
+  const { path, navigate } = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,7 +46,10 @@ export const Header: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-6 sm:px-12 flex items-center justify-between">
         {/* Brand Monogram & Name */}
-        <a href="#" className="flex items-center gap-3.5 group">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-3.5 group cursor-pointer text-right"
+        >
           <div className="w-10 h-10 rounded-full bg-[#124A57] border border-[#CD78B3]/60 flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-105 transition-transform">
             <span className="text-[#CD78B3]">PG</span>
           </div>
@@ -72,50 +77,86 @@ export const Header: React.FC = () => {
               Protein Golmohammadi
             </span>
           </div>
-        </a>
+        </button>
 
         {/* Desktop Navigation Items */}
         <nav
           className={`hidden lg:flex items-center gap-7 text-xs sm:text-sm font-medium transition-colors ${
-            isPastHero
+            isPastHero || path !== "/"
               ? isDark
                 ? "text-slate-200"
                 : "text-[#124A57]"
               : "text-white/90 drop-shadow"
           }`}
         >
-          <a
-            href="#hero-scroll-section"
-            className="hover:text-[#CD78B3] transition-colors"
+          <button
+            onClick={() => navigate("/")}
+            className={`hover:text-[#CD78B3] transition-colors cursor-pointer ${
+              path === "/" ? "text-[#CD78B3] font-bold" : ""
+            }`}
           >
             خانه
-          </a>
+          </button>
+          <button
+            onClick={() => navigate("/store")}
+            className={`hover:text-[#CD78B3] transition-colors cursor-pointer flex items-center gap-1 ${
+              path.startsWith("/store") || path.startsWith("/product") ? "text-[#CD78B3] font-bold" : ""
+            }`}
+          >
+            <span>فروشگاه اینترنتی</span>
+          </button>
           <a
-            href="#story-section"
+            href="/#story-section"
+            onClick={(e) => {
+              if (path !== "/") {
+                e.preventDefault();
+                navigate("/#story-section");
+              }
+            }}
             className="hover:text-[#CD78B3] transition-colors"
           >
             داستان ما
           </a>
           <a
-            href="#store-section"
-            className="hover:text-[#CD78B3] transition-colors"
-          >
-            محصولات
-          </a>
-          <a
-            href="#cooperation"
+            href="/#cooperation"
+            onClick={(e) => {
+              if (path !== "/") {
+                e.preventDefault();
+                navigate("/#cooperation");
+              }
+            }}
             className="hover:text-[#CD78B3] transition-colors"
           >
             شیوه همکاری
           </a>
+          <button
+            onClick={() => navigate("/blog")}
+            className={`hover:text-[#CD78B3] transition-colors cursor-pointer flex items-center gap-1 ${
+              path.startsWith("/blog") ? "text-[#CD78B3] font-bold" : ""
+            }`}
+          >
+            <span>وبلاگ تخصصی</span>
+          </button>
           <a
-            href="#faq-section"
+            href="/#faq-section"
+            onClick={(e) => {
+              if (path !== "/") {
+                e.preventDefault();
+                navigate("/#faq-section");
+              }
+            }}
             className="hover:text-[#CD78B3] transition-colors"
           >
             سوالات متداول
           </a>
           <a
-            href="#contact"
+            href="/#contact"
+            onClick={(e) => {
+              if (path !== "/") {
+                e.preventDefault();
+                navigate("/#contact");
+              }
+            }}
             className="hover:text-[#CD78B3] transition-colors"
           >
             تماس با ما
@@ -127,14 +168,15 @@ export const Header: React.FC = () => {
           {/* Theme Toggle Button */}
           <ThemeToggle />
 
-          <a
-            href="#store-section"
+          <button
+            type="button"
+            onClick={() => navigate("/store")}
             id="header-cta-store"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#CD78B3] hover:bg-[#b8619e] text-white text-xs font-bold transition-all shadow-md shadow-[#CD78B3]/25 active:scale-95 cursor-pointer"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            <span>فروشگاه</span>
-          </a>
+            <span>کاتالوگ فروشگاه</span>
+          </button>
 
           <a
             href="tel:02122000000"
@@ -205,14 +247,30 @@ export const Header: React.FC = () => {
             محصولات
           </a>
           <a
-            href="#cooperation"
-            onClick={() => setMobileMenuOpen(false)}
+            href="/#cooperation"
+            onClick={(e) => {
+              setMobileMenuOpen(false);
+              if (path !== "/") {
+                e.preventDefault();
+                navigate("/#cooperation");
+              }
+            }}
             className="hover:text-[#CD78B3] py-2 border-b border-current/5"
           >
             شیوه همکاری
           </a>
+          <button
+            onClick={() => {
+              setMobileMenuOpen(false);
+              navigate("/blog");
+            }}
+            className="hover:text-[#CD78B3] py-2 border-b border-current/5 text-right w-full cursor-pointer flex items-center justify-between"
+          >
+            <span>وبلاگ تخصصی</span>
+            <span className="text-[10px] bg-[#CD78B3] text-white px-2 py-0.5 rounded-full">جدید</span>
+          </button>
           <a
-            href="#faq-section"
+            href="/#faq-section"
             onClick={() => setMobileMenuOpen(false)}
             className="hover:text-[#CD78B3] py-2 border-b border-current/5"
           >

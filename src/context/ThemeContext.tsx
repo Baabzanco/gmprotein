@@ -14,7 +14,7 @@ const THEME_STORAGE_KEY = "pg_theme";
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Check saved preference or DOM attribute, default to dark
+    // Check saved preference or DOM attribute, default to light
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
       if (saved === "light" || saved === "dark") {
@@ -25,7 +25,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return initialAttr;
       }
     }
-    return "dark"; // Dark mode is default
+    return "light"; // Light mode is default (Rule B)
   });
 
   const applyThemeToDOM = (newTheme: Theme) => {

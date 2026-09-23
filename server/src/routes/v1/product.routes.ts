@@ -11,6 +11,10 @@ router.get("/", validateQuery(productQuerySchema), (req, res, next) => {
   productController.getProducts(req, res, next);
 });
 
+router.get("/slug/:slug", (req, res, next) => {
+  productController.getProductBySlug(req, res, next);
+});
+
 router.get("/:id", (req, res, next) => {
   productController.getProductById(req, res, next);
 });

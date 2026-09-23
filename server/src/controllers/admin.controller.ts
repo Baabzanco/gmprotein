@@ -2,7 +2,6 @@ import fs from "fs";
 import path from "path";
 import { Response, NextFunction } from "express";
 import { auditRepository } from "../repositories/audit.repository";
-import { quotationRepository } from "../repositories/quotation.repository";
 import { contactRepository } from "../repositories/contact.repository";
 import { productRepository } from "../repositories/product.repository";
 import { userRepository } from "../repositories/user.repository";
@@ -11,6 +10,9 @@ import { sendSuccess, sendError } from "../utils/response";
 import { AuthenticatedRequest } from "../middleware/auth";
 import { isDatabaseConnected, getPrismaClient } from "../config/prisma";
 import { loadPersistentSettings, savePersistentSettings } from "../utils/persistentSettings";
+
+import { userService } from "../services/user.service";
+import { roleRepository } from "../repositories/role.repository";
 
 // Safe editable system settings store with filesystem persistence
 let currentSettings = loadPersistentSettings();
@@ -64,14 +66,12 @@ let inMemoryCampaigns: any[] = [
 export class AdminController {
   async getDashboardStats(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const [products, quotations, contacts, users] = await Promise.all([
+      const [products, contacts, users] = await Promise.all([
         productRepository.findAll(),
-        quotationRepository.findAll(),
         contactRepository.findAll(),
         userRepository.findAll(),
       ]);
 
-      const pendingQuotations = quotations.filter((q) => q.status === "PENDING").length;
       const newContacts = contacts.filter((c) => c.status === "NEW").length;
       const activeProducts = products.filter((p) => p.isAvailable).length;
       const activeCampaigns = inMemoryCampaigns.filter((c) => c.isActive).length;
@@ -79,11 +79,9 @@ export class AdminController {
       return sendSuccess(res, {
         totalProducts: products.length,
         activeProducts,
-        totalQuotations: quotations.length,
-        pendingQuotations,
         totalContacts: contacts.length,
         newContacts,
-        totalUsers: users.length,
+        totalUsers: users.total || users.users.length,
         activeCampaigns,
         databaseConnected: isDatabaseConnected(),
         systemTime: new Date().toISOString(),
@@ -143,11 +141,33 @@ export class AdminController {
     }
   }
 
-  // --- Users & Roles ---
+  // --- Users & Roles Management (Phase 5) ---
   async getUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const users = await userRepository.findAll();
-      return sendSuccess(res, users, 200, { total: users.length });
+      const { search, role, status, page, limit } = req.query as any;
+      const result = await userService.getUsers({
+        search,
+        role,
+        status,
+        page,
+        limit,
+      });
+      return sendSuccess(res, result.users, 200, {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      });
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async getUserById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const user = await userService.getUserById(id);
+      return sendSuccess(res, user, 200);
     } catch (err: any) {
       next(err);
     }
@@ -156,14 +176,7 @@ export class AdminController {
   async createUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { firstName, lastName, email, phone, password, roles } = req.body;
-      if (!firstName || !lastName || !email || !password || !Array.isArray(roles)) {
-        return sendError(res, "VALIDATION_ERROR", "تمام فیلدهای اجباری را وارد کنید", 400);
-      }
-      const existing = await userRepository.findByEmail(email);
-      if (existing) {
-        return sendError(res, "CONFLICT", "کاربری با این ایمیل قبلاً ثبت شده است", 409);
-      }
-      const created = await userRepository.create({
+      const created = await userService.createUser(req.user?.id, {
         firstName,
         lastName,
         email,
@@ -171,16 +184,17 @@ export class AdminController {
         password,
         roles,
       });
-
-      await auditRepository.log({
-        userId: req.user?.id,
-        action: "USER_CREATED",
-        entity: "User",
-        entityId: created.id,
-        metadata: { email, roles },
-      });
-
       return sendSuccess(res, created, 201);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async updateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updated = await userService.updateUser(req.user?.id, id, req.body);
+      return sendSuccess(res, updated, 200);
     } catch (err: any) {
       next(err);
     }
@@ -189,21 +203,20 @@ export class AdminController {
   async updateUserStatus(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const { isActive } = req.body;
-      const success = await userRepository.updateStatus(id, Boolean(isActive));
-      if (!success) {
-        return sendError(res, "USER_NOT_FOUND", "کاربر مورد نظر یافت نشد", 404);
-      }
+      const isActive = req.body.isActive !== undefined ? Boolean(req.body.isActive) : req.body.status === "ACTIVE";
+      const success = await userService.updateUserStatus(req.user?.id, id, isActive);
+      return sendSuccess(res, { success, isActive, status: isActive ? "ACTIVE" : "SUSPENDED" }, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
 
-      await auditRepository.log({
-        userId: req.user?.id,
-        action: "USER_STATUS_UPDATED",
-        entity: "User",
-        entityId: id,
-        metadata: { isActive },
-      });
-
-      return sendSuccess(res, { success: true, isActive }, 200);
+  async resetUserPassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { password } = req.body;
+      const success = await userService.resetPassword(req.user?.id, id, password);
+      return sendSuccess(res, { success, message: "رمز عبور با موفقیت بازنشانی شد." }, 200);
     } catch (err: any) {
       next(err);
     }
@@ -212,19 +225,8 @@ export class AdminController {
   async deleteUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const success = await userRepository.delete(id);
-      if (!success) {
-        return sendError(res, "USER_NOT_FOUND", "کاربر برای حذف یافت نشد", 404);
-      }
-
-      await auditRepository.log({
-        userId: req.user?.id,
-        action: "USER_DELETED",
-        entity: "User",
-        entityId: id,
-      });
-
-      return sendSuccess(res, { deleted: true }, 200);
+      const success = await userService.deleteUser(req.user?.id, id);
+      return sendSuccess(res, { deleted: success }, 200);
     } catch (err: any) {
       next(err);
     }
@@ -232,65 +234,64 @@ export class AdminController {
 
   async getRoles(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const roles = [
-        {
-          id: "role-super-admin",
-          name: "SUPER_ADMIN",
-          title: "مدیر ارشد سیستم",
-          description: "دسترسی کامل و نامحدود به تمامی بخش‌ها و داده‌های سیستم",
-          usersCount: 1,
-          permissions: ["MANAGE:*"],
-        },
-        {
-          id: "role-admin",
-          name: "ADMIN",
-          title: "مدیر عملیات",
-          description: "مدیریت عمومی پلتفرم، کاتالوگ و مشتریان",
-          usersCount: 2,
-          permissions: ["READ:*", "CREATE:*", "UPDATE:*"],
-        },
-        {
-          id: "role-product-manager",
-          name: "PRODUCT_MANAGER",
-          title: "مدیر محصولات",
-          description: "مدیریت قیمت‌ها، محصولات، دسته‌بندی‌ها و موجودی",
-          usersCount: 3,
-          permissions: ["MANAGE:products", "MANAGE:categories", "MANAGE:prices"],
-        },
-        {
-          id: "role-sales-manager",
-          name: "SALES_MANAGER",
-          title: "مدیر فروش و پیش‌فاکتور",
-          description: "بررسی و صدور پیش‌فاکتورهای رسمی و ارتباط با مشتریان",
-          usersCount: 4,
-          permissions: ["MANAGE:quotations", "READ:products", "READ:contacts"],
-        },
-        {
-          id: "role-content-manager",
-          name: "CONTENT_MANAGER",
-          title: "مدیر محتوا",
-          description: "ویرایش متن‌های صفحه فرود، مقالات بلاگ، سوالات متداول و کمپین‌ها",
-          usersCount: 2,
-          permissions: ["MANAGE:content", "MANAGE:landing", "MANAGE:faq"],
-        },
-        {
-          id: "role-support",
-          name: "SUPPORT",
-          title: "کارشناس پشتیبانی",
-          description: "پاسخگویی به پیام‌های تماس و درخواست‌های همکاری",
-          usersCount: 2,
-          permissions: ["READ:contacts", "UPDATE:contacts"],
-        },
-        {
-          id: "role-viewer",
-          name: "VIEWER",
-          title: "بیننده (فقط خواندنی)",
-          description: "مشاهده گزارش‌ها و آمار به صورت فقط-خواندنی بدون امکان تغییر",
-          usersCount: 1,
-          permissions: ["READ:reports", "READ:products", "READ:quotations"],
-        },
-      ];
+      const roles = await userService.getRoles();
       return sendSuccess(res, roles, 200, { total: roles.length });
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async getRoleById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const role = await userService.getRoleById(id);
+      return sendSuccess(res, role, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async createRole(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { name, title, description, permissions } = req.body;
+      const created = await userService.createRole(req.user?.id, {
+        name,
+        title,
+        description,
+        permissions: permissions || [],
+      });
+      return sendSuccess(res, created, 201);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async updateRole(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updated = await userService.updateRole(req.user?.id, id, req.body);
+      return sendSuccess(res, updated, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async updateRolePermissions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { permissions } = req.body;
+      const updated = await userService.updateRolePermissions(req.user?.id, id, permissions);
+      return sendSuccess(res, updated, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async deleteRole(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const deleted = await userService.deleteRole(req.user?.id, id);
+      return sendSuccess(res, { deleted }, 200);
     } catch (err: any) {
       next(err);
     }
@@ -298,17 +299,8 @@ export class AdminController {
 
   async getPermissions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const matrix = [
-        { resource: "محصولات (Products)", read: true, create: true, update: true, delete: true, manage: true },
-        { resource: "دسته‌بندی‌ها (Categories)", read: true, create: true, update: true, delete: true, manage: true },
-        { resource: "پیش‌فاکتورها (Quotations)", read: true, create: false, update: true, delete: false, manage: true },
-        { resource: "پیام‌های تماس (Contacts)", read: true, create: false, update: true, delete: true, manage: true },
-        { resource: "محتوا و لندینگ (Content)", read: true, create: true, update: true, delete: true, manage: true },
-        { resource: "کاربران و نقش‌ها (Users)", read: true, create: true, update: true, delete: true, manage: true },
-        { resource: "گزارش‌ها (Reports)", read: true, create: false, update: false, delete: false, manage: true },
-        { resource: "تنظیمات سیستمی (Settings)", read: true, create: false, update: true, delete: false, manage: true },
-      ];
-      return sendSuccess(res, matrix, 200);
+      const permissions = await userService.getPermissions();
+      return sendSuccess(res, permissions, 200, { total: permissions.length });
     } catch (err: any) {
       next(err);
     }
@@ -511,6 +503,87 @@ export class AdminController {
         },
         200
       );
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  // --- FAQs Management ---
+  async getFaqs(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const faqs = await landingRepository.getAllFaqsAdmin();
+      return sendSuccess(res, faqs, 200, { total: faqs.length });
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async createFaq(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { question, answer, category, sortOrder, isPublished } = req.body;
+      if (!question || !answer) {
+        return sendError(res, "VALIDATION_ERROR", "پرسش و پاسخ هر دو الزامی هستند", 400);
+      }
+      const created = await landingRepository.createFaq({
+        question,
+        answer,
+        category,
+        sortOrder,
+        isPublished,
+      });
+
+      await auditRepository.log({
+        userId: req.user?.id,
+        action: "FAQ_CREATED",
+        entity: "FAQ",
+        entityId: created.id,
+        metadata: { question: created.question },
+      });
+
+      return sendSuccess(res, created, 201);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async updateFaq(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updated = await landingRepository.updateFaq(id, req.body);
+      if (!updated) {
+        return sendError(res, "NOT_FOUND", "سوال متداول مورد نظر یافت نشد", 404);
+      }
+
+      await auditRepository.log({
+        userId: req.user?.id,
+        action: "FAQ_UPDATED",
+        entity: "FAQ",
+        entityId: id,
+        metadata: { ...req.body },
+      });
+
+      return sendSuccess(res, updated, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async deleteFaq(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const success = await landingRepository.deleteFaq(id);
+      if (!success) {
+        return sendError(res, "NOT_FOUND", "سوال متداول مورد نظر یافت نشد", 404);
+      }
+
+      await auditRepository.log({
+        userId: req.user?.id,
+        action: "FAQ_DELETED",
+        entity: "FAQ",
+        entityId: id,
+      });
+
+      return sendSuccess(res, { deleted: true }, 200);
     } catch (err: any) {
       next(err);
     }

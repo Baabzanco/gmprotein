@@ -1,17 +1,58 @@
 export type Theme = "dark" | "light";
 
+export interface ProductFeature {
+  id?: string;
+  productId?: string;
+  name: string;
+  value: string;
+  sortOrder?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
+  slug?: string;
   category: string;
+  categoryId?: string;
+  sku?: string;
   image: string;
   description: string;
+  shortDescription?: string;
   pricePerKg?: number;
+  basePrice?: number;
+  effectivePrice?: number;
+  unit?: string;
+  minimumOrder?: number;
   discount?: number;
   available: boolean;
+  isAvailable?: boolean;
+  isFeatured?: boolean;
   cutType?: string;
   origin?: string;
   recommendedFor?: string;
+  allowCustomWeight?: boolean;
+  features?: ProductFeature[];
+  images?: { id?: string; url: string; isPrimary?: boolean; sortOrder?: number }[];
+  packageOptions?: { id?: string; weightKg: number; label: string; isDefault?: boolean; sortOrder?: number; isActive?: boolean }[];
+}
+
+export interface MediaItem {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  extension: string;
+  size: number;
+  url: string;
+  mediaType: "IMAGE" | "VIDEO" | "DOCUMENT" | "OTHER";
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  alt?: string | null;
+  caption?: string | null;
+  referencedBy?: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AchievementItem {

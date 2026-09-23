@@ -21,7 +21,7 @@
       (function() {
         try {
           var stored = localStorage.getItem('pg_theme');
-          var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+          var theme = stored === 'light' || stored === 'dark' ? stored : 'light';
           document.documentElement.setAttribute('data-theme', theme);
           if (theme === 'dark') {
             document.documentElement.classList.add('dark');

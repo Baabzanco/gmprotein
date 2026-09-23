@@ -23,6 +23,16 @@ export const showToast = (message: string, type: ToastType = "success") => {
   }, 4000);
 };
 
+export const useAdminToast = () => {
+  return {
+    showToast,
+    showSuccess: (msg: string) => showToast(msg, "success"),
+    showError: (msg: string) => showToast(msg, "error"),
+    showWarning: (msg: string) => showToast(msg, "warning"),
+    showInfo: (msg: string) => showToast(msg, "info"),
+  };
+};
+
 export const AdminToastContainer: React.FC = () => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 

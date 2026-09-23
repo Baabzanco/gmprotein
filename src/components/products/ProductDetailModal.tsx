@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Product } from "../../types";
 import { quotationService } from "../../services";
 import { formatPersianNumber, toPersianDigits } from "../../utils/formatters";
-import { X, CheckCircle, Scale, Package, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
+import { X, CheckCircle, Scale, Package, ShieldCheck, Sparkles, AlertCircle, Check } from "lucide-react";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -12,8 +12,22 @@ interface ProductDetailModalProps {
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose }) => {
   if (!product) return null;
 
+  const defaultOption =
+    product.packageOptions?.find((opt) => opt.isDefault) ||
+    product.packageOptions?.[0];
+
+  const initialWeight = defaultOption
+    ? defaultOption.weightKg
+    : product.minimumOrder || 2;
+
   // Local state for Quotation calculation
-  const [selectedWeightKg, setSelectedWeightKg] = useState<number>(2);
+  const [selectedWeightKg, setSelectedWeightKg] = useState<number>(initialWeight);
+  const [isCustomWeightMode, setIsCustomWeightMode] = useState<boolean>(false);
+  const [customWeightInput, setCustomWeightInput] = useState<number>(initialWeight);
+  const [selectedPackageLabel, setSelectedPackageLabel] = useState<string>(
+    defaultOption ? defaultOption.label : `بسته ${toPersianDigits(initialWeight)} کیلوگرمی`
+  );
+
   const [packageCount, setPackageCount] = useState<number>(1);
   const [customerName, setCustomerName] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
@@ -26,12 +40,38 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
   const [successMessage, setSuccessMessage] = useState<string>("");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  useEffect(() => {
+    if (product) {
+      const def =
+        product.packageOptions?.find((opt) => opt.isDefault) ||
+        product.packageOptions?.[0];
+      const w = def ? def.weightKg : product.minimumOrder || 2;
+      setSelectedWeightKg(w);
+      setCustomWeightInput(w);
+      setIsCustomWeightMode(false);
+      setSelectedPackageLabel(def ? def.label : `بسته ${toPersianDigits(w)} کیلوگرمی`);
+    }
+  }, [product]);
+
   // Price calculations
   const unitPrice = product.pricePerKg || 0;
   const effectivePricePerKg = product.discount
     ? unitPrice * (1 - product.discount / 100)
     : unitPrice;
-  const totalEstimatedAmount = Math.round(effectivePricePerKg * selectedWeightKg * packageCount);
+  const activeWeight = isCustomWeightMode ? customWeightInput : selectedWeightKg;
+  const totalEstimatedAmount = Math.round(effectivePricePerKg * activeWeight * packageCount);
+
+  const handleSelectPackage = (weightKg: number, label: string) => {
+    setIsCustomWeightMode(false);
+    setSelectedWeightKg(weightKg);
+    setSelectedPackageLabel(label);
+  };
+
+  const handleCustomWeightChange = (val: number) => {
+    const validVal = Math.max(0.5, val);
+    setCustomWeightInput(validVal);
+    setSelectedPackageLabel(`وزن دلخواه: ${toPersianDigits(validVal)} کیلوگرم`);
+  };
 
   const handleSubmitQuotation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,15 +79,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
     setIsSubmitting(true);
 
     try {
+      const combinedNotes = [
+        selectedPackageLabel ? `بسته‌بندی انتخابی: ${selectedPackageLabel}` : "",
+        notes.trim() ? `توضیحات: ${notes.trim()}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
       const response = await quotationService.submitRequest({
         productId: product.id,
         productName: product.name,
-        weightKg: selectedWeightKg,
+        weightKg: activeWeight,
         quantityPackages: packageCount,
         customerName,
         phone,
         companyName,
-        notes,
+        notes: combinedNotes,
       });
 
       setSubmitSuccess(true);
@@ -58,6 +105,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
       setIsSubmitting(false);
     }
   };
+
+  const hasPredefinedPackages =
+    Array.isArray(product.packageOptions) && product.packageOptions.length > 0;
+  const canUseCustomWeight = product.allowCustomWeight ?? true;
 
   return (
     <div
@@ -86,7 +137,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
             />
             {product.discount && (
               <span className="absolute top-4 right-4 bg-[#CD78B3] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                {product.discount}٪ تخفیف فصلی
+                {toPersianDigits(product.discount)}٪ تخفیف ویژه
+              </span>
+            )}
+            {product.sku && (
+              <span className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-sm text-white/90 text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/20">
+                {product.sku}
               </span>
             )}
           </div>
@@ -132,32 +188,101 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                   <span>سامانه رسمی استعلام بها و پیش‌فاکتور</span>
                 </div>
                 <h4 className="text-lg font-bold text-[var(--text-primary)]">
-                  تنظیم مقادیر و صدور پیش‌فاکتور
+                  انتخاب وزن بسته و صدور پیش‌فاکتور
                 </h4>
               </div>
 
-              {/* Weight Selector */}
+              {/* Predefined Package Options Selector */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-2">
-                  وزن تقریبی هر بسته (کیلوگرم):
+                  وزن و بسته‌بندی تحویل:
                 </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[1, 2, 5, 10].map((w) => (
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {hasPredefinedPackages ? (
+                    product.packageOptions!.map((opt) => {
+                      const isSelected = !isCustomWeightMode && selectedWeightKg === opt.weightKg;
+                      return (
+                        <button
+                          type="button"
+                          key={opt.id || opt.weightKg}
+                          onClick={() => handleSelectPackage(opt.weightKg, opt.label)}
+                          className={`p-2.5 rounded-xl text-xs font-bold transition-all border flex flex-col items-start gap-1 cursor-pointer text-right ${
+                            isSelected
+                              ? "bg-[#124A57] border-[#CD78B3] text-white shadow-md shadow-[#CD78B3]/20"
+                              : "bg-[var(--surface-card)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[#124A57]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-extrabold text-sm">
+                              {toPersianDigits(opt.weightKg)} کیلوگرم
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-[#CD78B3]" />}
+                          </div>
+                          <span className="text-[10px] opacity-80 line-clamp-1">
+                            {opt.label}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    [2, 5, 10, 25].map((w) => {
+                      const isSelected = !isCustomWeightMode && selectedWeightKg === w;
+                      return (
+                        <button
+                          type="button"
+                          key={w}
+                          onClick={() => handleSelectPackage(w, `بسته ${toPersianDigits(w)} کیلوگرمی`)}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 cursor-pointer ${
+                            isSelected
+                              ? "bg-[#124A57] border-[#CD78B3] text-white shadow-md shadow-[#CD78B3]/20"
+                              : "bg-[var(--surface-card)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[#124A57]"
+                          }`}
+                        >
+                          <Scale className="w-3.5 h-3.5" />
+                          <span>{toPersianDigits(w)} کیلوگرم</span>
+                        </button>
+                      );
+                    })
+                  )}
+
+                  {/* Optional Custom Weight Toggle */}
+                  {canUseCustomWeight && (
                     <button
                       type="button"
-                      key={w}
-                      onClick={() => setSelectedWeightKg(w)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border flex items-center justify-center gap-1 cursor-pointer ${
-                        selectedWeightKg === w
+                      onClick={() => setIsCustomWeightMode(true)}
+                      className={`p-2.5 rounded-xl text-xs font-bold transition-all border flex flex-col items-start justify-center gap-1 cursor-pointer text-right ${
+                        isCustomWeightMode
                           ? "bg-[#124A57] border-[#CD78B3] text-white shadow-md shadow-[#CD78B3]/20"
                           : "bg-[var(--surface-card)] border-[var(--border)] text-[var(--text-secondary)] hover:border-[#124A57]"
                       }`}
                     >
-                      <Scale className="w-3.5 h-3.5" />
-                      <span>{toPersianDigits(w)} کیلو</span>
+                      <div className="flex items-center gap-1">
+                        <Scale className="w-3.5 h-3.5" />
+                        <span>وزن دلخواه دستی</span>
+                      </div>
+                      <span className="text-[10px] opacity-80">ورود کیلوگرم دلخواه</span>
                     </button>
-                  ))}
+                  )}
                 </div>
+
+                {/* Custom Weight Input Field when active */}
+                {isCustomWeightMode && (
+                  <div className="mt-3 p-3 rounded-xl bg-[var(--surface-card-alt)] border border-[#CD78B3]/40 flex items-center gap-3 animate-fadeIn">
+                    <label className="text-xs text-[var(--text-secondary)] whitespace-nowrap font-medium">
+                      وزن دلخواه (کیلوگرم):
+                    </label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      value={customWeightInput}
+                      onChange={(e) => handleCustomWeightChange(Number(e.target.value))}
+                      className="w-28 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-[var(--text-primary)] text-center focus:outline-none focus:border-[#CD78B3]"
+                    />
+                    <span className="text-xs text-[var(--text-muted)]">کیلوگرم</span>
+                  </div>
+                )}
               </div>
 
               {/* Quantity Packages */}
@@ -192,13 +317,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
                 <div className="p-4 rounded-2xl bg-[var(--badge-bg)] border border-[var(--badge-border)] flex items-center justify-between text-xs">
                   <div>
                     <span className="text-[var(--text-muted)] block text-[11px]">مبلغ برآوردی پیش‌فاکتور:</span>
-                    <span className="text-[var(--text-primary)] text-base font-extrabold">
+                    <span className="text-[var(--text-primary)] text-base font-extrabold font-mono">
                       {formatPersianNumber(totalEstimatedAmount)}
                     </span>{" "}
                     <span className="text-[var(--text-secondary)]">تومان</span>
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)]">
-                    مجموع وزن: {toPersianDigits(selectedWeightKg * packageCount)} کیلوگرم
+                    مجموع وزن: {toPersianDigits(activeWeight * packageCount)} کیلوگرم
                   </span>
                 </div>
               ) : null}

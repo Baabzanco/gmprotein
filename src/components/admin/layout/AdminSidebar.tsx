@@ -12,6 +12,7 @@ import {
   MessageSquare,
   ShoppingBag,
   FileText,
+  BookOpen,
   Users,
   Shield,
   BarChart3,
@@ -22,6 +23,7 @@ import {
   LogOut,
   ChevronRight,
   ChevronLeft,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -49,7 +51,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     setIsMobileOpen(false);
   };
 
-  const navGroups = [
+  interface NavItem {
+    title: string;
+    path: string;
+    icon: React.ReactNode;
+    permissionKey: string;
+    badge?: number;
+    badgeColor?: string;
+  }
+
+  const navGroups: { label: string; items: NavItem[] }[] = [
     {
       label: "اصلی",
       items: [
@@ -102,16 +113,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ],
     },
     {
-      label: "فروش و ارتباطات",
+      label: "ارتباطات",
       items: [
-        {
-          title: "پیش‌فاکتورهای رسمی",
-          path: "/admin/quotations",
-          icon: <FileSpreadsheet className="w-4 h-4" />,
-          badge: pendingQuotationsCount > 0 ? pendingQuotationsCount : undefined,
-          badgeColor: "amber",
-          permissionKey: "quotations",
-        },
         {
           title: "پیام‌ها و استعلام تماس",
           path: "/admin/contacts",
@@ -119,12 +122,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           badge: newContactsCount > 0 ? newContactsCount : undefined,
           badgeColor: "emerald",
           permissionKey: "contacts",
-        },
-        {
-          title: "سفارش‌ها و یکپارچه‌سازی ERP",
-          path: "/admin/orders",
-          icon: <ShoppingBag className="w-4 h-4" />,
-          permissionKey: "reports",
         },
       ],
     },
@@ -135,6 +132,18 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           title: "مدیریت صفحات و لندینگ",
           path: "/admin/content",
           icon: <FileText className="w-4 h-4" />,
+          permissionKey: "content",
+        },
+        {
+          title: "کتابخانه رسانه‌ها",
+          path: "/admin/media",
+          icon: <ImageIcon className="w-4 h-4" />,
+          permissionKey: "media",
+        },
+        {
+          title: "وبلاگ و مقالات",
+          path: "/admin/blog",
+          icon: <BookOpen className="w-4 h-4" />,
           permissionKey: "content",
         },
       ],
@@ -201,7 +210,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 right-0 z-40 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col transition-all duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 right-0 z-40 bg-white dark:bg-[#124A57] border-l border-slate-200 dark:border-white/10 flex flex-col transition-all duration-300 ease-in-out ${
           isCollapsed ? "w-20" : "w-72"
         } ${
           isMobileOpen
@@ -210,12 +219,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         }`}
       >
         {/* Top Brand Bar */}
-        <div className="h-16 px-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+        <div className="h-16 px-4 border-b border-slate-100 dark:border-white/10 flex items-center justify-between shrink-0">
           <div
             onClick={() => handleNav("/admin/dashboard")}
             className="flex items-center gap-3 cursor-pointer overflow-hidden"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#124A57] flex items-center justify-center font-black text-white shrink-0 shadow-sm border border-[#CD78B3]/50">
+            <div className="w-10 h-10 rounded-xl bg-[#0E353E] dark:bg-black/40 flex items-center justify-center font-black text-white shrink-0 shadow-sm border border-[#CD78B3]/50">
               <span className="text-xs text-[#CD78B3]">PG</span>
             </div>
             {!isCollapsed && (
@@ -223,7 +232,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <div className="font-extrabold text-sm text-slate-900 dark:text-slate-100 truncate">
                   پروتئین گلمحمدی
                 </div>
-                <div className="text-[10px] text-slate-400 font-mono tracking-wider">
+                <div className="text-[10px] text-slate-400 dark:text-slate-300 font-mono tracking-wider">
                   مدیریت پلتفرم B2B
                 </div>
               </div>
@@ -232,7 +241,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden lg:flex w-7 h-7 rounded-lg items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="hidden lg:flex w-7 h-7 rounded-lg items-center justify-center text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
             title={isCollapsed ? "باز کردن سایدبار" : "جمع کردن سایدبار"}
           >
             {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -250,7 +259,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             return (
               <div key={gIdx} className="space-y-1">
                 {!isCollapsed && (
-                  <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <div className="px-3 pb-1 text-[11px] font-bold text-slate-400 dark:text-slate-200/70 uppercase tracking-wider">
                     {group.label}
                   </div>
                 )}
@@ -266,12 +275,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       title={isCollapsed ? item.title : undefined}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                         isActive
-                          ? "bg-[#124A57] text-white shadow-xs"
-                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                          ? "bg-[#124A57] text-white shadow-xs dark:bg-black/40 dark:border dark:border-[#CD78B3]/60 dark:text-white"
+                          : "text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
                       } ${isCollapsed ? "justify-center" : ""}`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <span className={`shrink-0 ${isActive ? "text-[#CD78B3]" : "text-slate-400"}`}>
+                        <span className={`shrink-0 ${isActive ? "text-[#CD78B3]" : "text-slate-400 dark:text-slate-300"}`}>
                           {item.icon}
                         </span>
                         {!isCollapsed && <span className="truncate">{item.title}</span>}
@@ -297,20 +306,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         {/* Bottom Profile & Actions */}
-        <div className="p-3 border-t border-slate-100 dark:border-slate-800 space-y-2 shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="p-3 border-t border-slate-100 dark:border-white/10 space-y-2 shrink-0 bg-slate-50/50 dark:bg-black/20">
           <button
             onClick={() => handleNav("/")}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-slate-600 dark:text-slate-400 hover:text-[#124A57] dark:hover:text-teal-400 hover:bg-white dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700 ${
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-slate-600 dark:text-slate-300 hover:text-[#124A57] dark:hover:text-teal-400 hover:bg-white dark:hover:bg-white/10 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-white/15 ${
               isCollapsed ? "justify-center" : ""
             }`}
             title="مشاهده وب‌سایت عمومی"
           >
-            <ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
+            <ExternalLink className="w-4 h-4 text-slate-400 dark:text-slate-300 shrink-0" />
             {!isCollapsed && <span>مشاهده وب‌سایت عمومی</span>}
           </button>
 
           <div
-            className={`flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 ${
+            className={`flex items-center justify-between p-2 rounded-xl bg-white dark:bg-black/30 border border-slate-200/80 dark:border-white/15 ${
               isCollapsed ? "justify-center" : ""
             }`}
           >
@@ -323,7 +332,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
                     {user ? `${user.firstName} ${user.lastName}` : "مدیر سیستم"}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">
+                  <div className="text-[10px] text-slate-400 dark:text-slate-300 font-mono truncate">
                     {primaryRole}
                   </div>
                 </div>
@@ -334,7 +343,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               <button
                 onClick={logout}
                 title="خروج از حساب"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 dark:text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>

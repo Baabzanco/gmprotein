@@ -8,7 +8,8 @@ import {
   SiteSettingDTO,
 } from "../../../shared/types";
 
-const defaultFaqs: FaqDTO[] = [
+// Authoritative single source of truth for FAQs
+let inMemoryFaqs: FaqDTO[] = [
   {
     id: "faq-1",
     question: "آیا امکان سفارش‌سازی ضخامت و وزن برش‌های استیک وجود دارد؟",
@@ -39,6 +40,22 @@ const defaultFaqs: FaqDTO[] = [
     answer: "در فرآیند درای‌ایج، لاشه یا برش در دمای صفر تا ۲ درجه سانتی‌گراد و رطوبت ۸۵٪ به مدت ۲۱ تا ۴۵ روز نگهداری می‌شود. آنزیم‌های طبیعی بافت فیبرها را شکسته و رطوبت سطحی تبخیر شده تا طعم گوشت به اوج غلظت و لطافت برسد.",
     category: "تخصصی و استیک",
     sortOrder: 4,
+    isPublished: true,
+  },
+  {
+    id: "faq-5",
+    question: "زمان‌بندی ارسال سفارش‌ها در تهران و شهرستان‌ها چگونه است؟",
+    answer: "سفارش‌های رسمی شهر تهران ظرف کمتر از ۴ ساعت با ناوگان برودتی تحویل داده می‌شوند. برای سفارش‌های عمده شهرستان‌ها، ارسال توسط خودروهای یخچال‌دار ترانزیت همراه با گواهی دامپزشکی ظرف ۲۴ تا ۴۸ ساعت انجام می‌پذیرد.",
+    category: "سفارش و تحویل",
+    sortOrder: 5,
+    isPublished: true,
+  },
+  {
+    id: "faq-6",
+    question: "روال پرداخت و تسویه حساب برای مشتریان قراردادی و ارگان‌ها چگونه است؟",
+    answer: "پس از اعتبارسنجی اولیه و عقد قرارداد تأمین دوره‌ای، امکان تسویه اعتباری و پرداخت مدت‌دار بر اساس فاکتورهای رسمی مورد تأیید امور مالی فراهم می‌گردد.",
+    category: "پیش‌فاکتور و خرید",
+    sortOrder: 6,
     isPublished: true,
   },
 ];
@@ -124,15 +141,6 @@ const defaultSteps: CooperationStepDTO[] = [
   },
 ];
 
-const defaultSettings: SiteSettingDTO[] = [
-  { id: "set-1", key: "siteName", value: "پروتئین گلمحمدی", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-  { id: "set-2", key: "siteDescription", value: "مرکز تخصصی تأمین گوشت و برش‌های ممتاز استیک با زنجیره سرد استاندارد", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-  { id: "set-3", key: "phone", value: "02122000000", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-  { id: "set-4", key: "email", value: "info@golmohamadi.com", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-  { id: "set-5", key: "heroVideoUrl", value: "https://golmohamadi.com/wp-content/uploads/2026/09/Create-A-Single-Continuous-Cin-3.mp4", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-  { id: "set-6", key: "defaultTheme", value: "dark", type: "string", isPublic: true, updatedAt: new Date().toISOString() },
-];
-
 export class LandingRepository {
   async getFaqs(): Promise<FaqDTO[]> {
     if (isDatabaseConnected()) {
@@ -142,17 +150,128 @@ export class LandingRepository {
           where: { isPublished: true },
           orderBy: { sortOrder: "asc" },
         });
-        return items.map((f) => ({
-          id: f.id,
-          question: f.question,
-          answer: f.answer,
-          category: f.category,
-          sortOrder: f.sortOrder,
-          isPublished: f.isPublished,
-        }));
+        if (items.length > 0) {
+          return items.map((f) => ({
+            id: f.id,
+            question: f.question,
+            answer: f.answer,
+            category: f.category,
+            sortOrder: f.sortOrder,
+            isPublished: f.isPublished,
+          }));
+        }
       } catch (err) {}
     }
-    return defaultFaqs;
+    return inMemoryFaqs.filter((f) => f.isPublished);
+  }
+
+  async getAllFaqsAdmin(): Promise<FaqDTO[]> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        const items = await prisma.fAQ.findMany({
+          orderBy: { sortOrder: "asc" },
+        });
+        if (items.length > 0) {
+          return items.map((f) => ({
+            id: f.id,
+            question: f.question,
+            answer: f.answer,
+            category: f.category,
+            sortOrder: f.sortOrder,
+            isPublished: f.isPublished,
+          }));
+        }
+      } catch (err) {}
+    }
+    return inMemoryFaqs;
+  }
+
+  async createFaq(data: { question: string; answer: string; category?: string; sortOrder?: number; isPublished?: boolean }): Promise<FaqDTO> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        const created = await prisma.fAQ.create({
+          data: {
+            question: data.question,
+            answer: data.answer,
+            category: data.category || "عمومی",
+            sortOrder: data.sortOrder ?? inMemoryFaqs.length + 1,
+            isPublished: data.isPublished ?? true,
+          },
+        });
+        return {
+          id: created.id,
+          question: created.question,
+          answer: created.answer,
+          category: created.category,
+          sortOrder: created.sortOrder,
+          isPublished: created.isPublished,
+        };
+      } catch (err) {}
+    }
+
+    const newFaq: FaqDTO = {
+      id: `faq-${Date.now()}`,
+      question: data.question,
+      answer: data.answer,
+      category: data.category || "عمومی",
+      sortOrder: data.sortOrder ?? inMemoryFaqs.length + 1,
+      isPublished: data.isPublished ?? true,
+    };
+    inMemoryFaqs.push(newFaq);
+    return newFaq;
+  }
+
+  async updateFaq(id: string, data: Partial<FaqDTO>): Promise<FaqDTO | null> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        const updated = await prisma.fAQ.update({
+          where: { id },
+          data: {
+            question: data.question,
+            answer: data.answer,
+            category: data.category,
+            sortOrder: data.sortOrder,
+            isPublished: data.isPublished,
+          },
+        });
+        return {
+          id: updated.id,
+          question: updated.question,
+          answer: updated.answer,
+          category: updated.category,
+          sortOrder: updated.sortOrder,
+          isPublished: updated.isPublished,
+        };
+      } catch (err) {}
+    }
+
+    const idx = inMemoryFaqs.findIndex((f) => f.id === id);
+    if (idx === -1) return null;
+    inMemoryFaqs[idx] = {
+      ...inMemoryFaqs[idx],
+      ...data,
+    };
+    return inMemoryFaqs[idx];
+  }
+
+  async deleteFaq(id: string): Promise<boolean> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        await prisma.fAQ.delete({ where: { id } });
+        return true;
+      } catch (err) {}
+    }
+
+    const idx = inMemoryFaqs.findIndex((f) => f.id === id);
+    if (idx !== -1) {
+      inMemoryFaqs.splice(idx, 1);
+      return true;
+    }
+    return false;
   }
 
   async getCustomers(): Promise<CustomerPartnerDTO[]> {
@@ -243,20 +362,22 @@ export class LandingRepository {
     return persisted;
   }
 
-  async updateSetting(key: string, value: string): Promise<void> {
-    const existing = defaultSettings.find((s) => s.key === key);
-    if (existing) {
-      existing.value = value;
-      existing.updatedAt = new Date().toISOString();
-    } else {
-      defaultSettings.push({
-        id: `set-${Date.now()}`,
-        key,
-        value,
-        type: "string",
-        isPublic: true,
-        updatedAt: new Date().toISOString(),
-      });
+  async updateSetting(key: string, value: any): Promise<void> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        await prisma.siteSetting.upsert({
+          where: { key },
+          update: { value: typeof value === "string" ? value : JSON.stringify(value), updatedAt: new Date() },
+          create: {
+            id: `set-${key}-${Date.now()}`,
+            key,
+            value: typeof value === "string" ? value : JSON.stringify(value),
+            type: typeof value,
+            isPublic: true,
+          },
+        });
+      } catch (err) {}
     }
   }
 }

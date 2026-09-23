@@ -26,27 +26,75 @@ async function main() {
   }
   console.log("✓ Roles seeded.");
 
-  // 2. Seed Permissions
-  const permissions = [
-    { action: "MANAGE", resource: "*", description: "دسترسی کامل سیستمی" },
-    { action: "READ", resource: "products", description: "مشاهده محصولات" },
-    { action: "CREATE", resource: "products", description: "ایجاد محصول" },
-    { action: "UPDATE", resource: "products", description: "ویرایش محصول" },
-    { action: "DELETE", resource: "products", description: "حذف محصول" },
-    { action: "READ", resource: "quotations", description: "مشاهده پیش‌فاکتورها" },
-    { action: "UPDATE", resource: "quotations", description: "تغییر وضعیت پیش‌فاکتورها" },
-    { action: "READ", resource: "contact_requests", description: "مشاهده پیام‌های تماس" },
-    { action: "READ", resource: "audit_logs", description: "مشاهده گزارش‌های امنیتی" },
+  // 2. Seed Granular Permissions (Phase 5)
+  const granularPermissions = [
+    // Users
+    { action: "VIEW", resource: "users", description: "مشاهده لیست و مشخصات کاربران" },
+    { action: "CREATE", resource: "users", description: "تعریف کاربر و مدیر جدید" },
+    { action: "UPDATE", resource: "users", description: "ویرایش مشخصات و تخصیص نقش‌ها" },
+    { action: "SUSPEND", resource: "users", description: "تعلیق یا فعال‌سازی حساب کاربری" },
+    { action: "DELETE", resource: "users", description: "حذف حساب کاربری پرسنل" },
+
+    // Roles
+    { action: "VIEW", resource: "roles", description: "مشاهده نقش‌ها و ماتریس دسترسی‌ها" },
+    { action: "CREATE", resource: "roles", description: "ایجاد نقش کاربری جدید" },
+    { action: "UPDATE", resource: "roles", description: "ویرایش و تخصیص دسترسی‌های نقش" },
+    { action: "DELETE", resource: "roles", description: "حذف نقش‌های غیرسیستمی" },
+
+    // Products
+    { action: "VIEW", resource: "products", description: "مشاهده کاتالوگ و برش‌های گوشت" },
+    { action: "CREATE", resource: "products", description: "افزودن محصول جدید به کاتالوگ" },
+    { action: "UPDATE", resource: "products", description: "ویرایش مشخصات فنی و عکس محصولات" },
+    { action: "DELETE", resource: "products", description: "حذف محصول از کاتالوگ" },
+
+    // Categories
+    { action: "VIEW", resource: "categories", description: "مشاهده دسته‌بندی‌های گوشت" },
+    { action: "CREATE", resource: "categories", description: "ایجاد دسته‌بندی جدید" },
+    { action: "UPDATE", resource: "categories", description: "ویرایش دسته‌بندی" },
+    { action: "DELETE", resource: "categories", description: "حذف دسته‌بندی" },
+
+    // Pricing
+    { action: "VIEW", resource: "pricing", description: "مشاهده قیمت‌ها و کدهای تخفیف" },
+    { action: "UPDATE", resource: "pricing", description: "تغییر درصدی قیمت‌ها و تخفیف‌ها" },
+
+    // Campaigns
+    { action: "VIEW", resource: "campaigns", description: "مشاهده جشنواره‌ها و کمپین‌ها" },
+    { action: "CREATE", resource: "campaigns", description: "ایجاد کمپین فصلی جدید" },
+    { action: "UPDATE", resource: "campaigns", description: "ویرایش کمپین" },
+    { action: "DELETE", resource: "campaigns", description: "حذف کمپین" },
+
+    // Landing
+    { action: "VIEW", resource: "landing", description: "مشاهده محتوای صفحه فرود" },
+    { action: "UPDATE", resource: "landing", description: "ویرایش اجزای صفحه فرود و بنرها" },
+
+    // Blog
+    { action: "VIEW", resource: "blog", description: "مشاهده مقالات و دسته‌بندی‌های بلاگ" },
+    { action: "CREATE", resource: "blog", description: "نگارش و انتشار مقاله جدید" },
+    { action: "UPDATE", resource: "blog", description: "ویرایش مقاله و تنظیمات سئو" },
+    { action: "DELETE", resource: "blog", description: "حذف مقاله" },
+
+    // Media
+    { action: "VIEW", resource: "media", description: "مشاهده گالری فایل‌ها" },
+    { action: "CREATE", resource: "media", description: "آپلود تصاویر و ویدیوی اختصاصی" },
+    { action: "DELETE", resource: "media", description: "حذف فایل‌های رسانه‌ای" },
+
+    // Contacts
+    { action: "VIEW", resource: "contacts", description: "مشاهده پیام‌های تماس و همکاری" },
+    { action: "UPDATE", resource: "contacts", description: "پاسخگویی و تغییر وضعیت پیام‌ها" },
+
+    // Settings
+    { action: "VIEW", resource: "settings", description: "مشاهده تنظیمات سامانه و لاگ‌ها" },
+    { action: "UPDATE", resource: "settings", description: "ویرایش تنظیمات اصلی سامانه" },
   ];
 
-  for (const p of permissions) {
+  for (const p of granularPermissions) {
     await prisma.permission.upsert({
       where: { action_resource: { action: p.action, resource: p.resource } },
       update: { description: p.description },
       create: p,
     });
   }
-  console.log("✓ Permissions seeded.");
+  console.log("✓ Granular Permissions seeded.");
 
   // 3. Seed Super Admin User
   const superAdminRole = await prisma.role.findUnique({ where: { name: "SUPER_ADMIN" } });
