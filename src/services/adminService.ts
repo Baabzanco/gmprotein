@@ -93,11 +93,35 @@ export const adminService = {
     });
   },
 
-  async bulkUpdatePrices(productIds: string[], percentageChange: number) {
-    return request<any>("/products/bulk-price-update", {
-      method: "POST",
-      body: JSON.stringify({ productIds, percentageChange }),
-    });
+  async bulkUpdatePrices(
+    optionsOrIds:
+      | string[]
+      | {
+          type?: "PERCENTAGE" | "FIXED_AMOUNT";
+          value?: number;
+          percentageChange?: number;
+          productIds?: string[];
+          categoryId?: string;
+          roundToNearest?: number;
+        },
+    legacyPercentage?: number
+  ) {
+    const payload = Array.isArray(optionsOrIds)
+      ? {
+          type: "PERCENTAGE",
+          productIds: optionsOrIds,
+          percentageChange: legacyPercentage,
+          value: legacyPercentage,
+        }
+      : optionsOrIds;
+
+    return request<{ affectedCount: number; updatedProducts?: any[]; type?: string; value?: number }>(
+      "/products/bulk-price-update",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
   },
 
   // 3. Categories
@@ -112,6 +136,19 @@ export const adminService = {
     });
   },
 
+  async updateCategory(id: string, data: any) {
+    return request<any>(`/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCategory(id: string) {
+    return request<{ deleted: boolean }>(`/categories/${id}`, {
+      method: "DELETE",
+    });
+  },
+
   // 4. Quotations
   async getQuotations() {
     return request<any[]>("/quotations");
@@ -121,6 +158,12 @@ export const adminService = {
     return request<any>(`/quotations/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status, notes }),
+    });
+  },
+
+  async updateQuotationFollowup(id: string) {
+    return request<any>(`/quotations/${id}/follow-up`, {
+      method: "PATCH",
     });
   },
 
@@ -137,16 +180,33 @@ export const adminService = {
     });
   },
 
-  // 6. Users & Roles
-  async getUsers() {
-    return request<any[]>("/admin/users");
+  // 6. Users & Roles Management (Phase 5)
+  async getUsers(params?: {
+    search?: string;
+    role?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.role) q.set("role", params.role);
+    if (params?.status) q.set("status", params.status);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<any>(`/admin/users${qs}`);
+  },
+
+  async getUserById(id: string) {
+    return request<any>(`/admin/users/${id}`);
   },
 
   async createUser(data: {
     firstName: string;
     lastName: string;
     email: string;
-    phone?: string;
+    phone?: string | null;
     password: string;
     roles: string[];
   }) {
@@ -156,10 +216,35 @@ export const adminService = {
     });
   },
 
+  async updateUser(
+    id: string,
+    data: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string | null;
+      roles?: string[];
+      isActive?: boolean;
+      status?: "ACTIVE" | "SUSPENDED";
+    }
+  ) {
+    return request<any>(`/admin/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
   async updateUserStatus(id: string, isActive: boolean) {
     return request<any>(`/admin/users/${id}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ isActive }),
+      body: JSON.stringify({ isActive, status: isActive ? "ACTIVE" : "SUSPENDED" }),
+    });
+  },
+
+  async resetUserPassword(id: string, password: string) {
+    return request<any>(`/admin/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
     });
   },
 
@@ -171,6 +256,50 @@ export const adminService = {
 
   async getRoles() {
     return request<any[]>("/admin/roles");
+  },
+
+  async getRoleById(id: string) {
+    return request<any>(`/admin/roles/${id}`);
+  },
+
+  async createRole(data: {
+    name: string;
+    title: string;
+    description?: string | null;
+    permissions: string[];
+  }) {
+    return request<any>("/admin/roles", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateRole(
+    id: string,
+    data: {
+      name?: string;
+      title?: string;
+      description?: string | null;
+      permissions?: string[];
+    }
+  ) {
+    return request<any>(`/admin/roles/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateRolePermissions(id: string, permissions: string[]) {
+    return request<any>(`/admin/roles/${id}/permissions`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
+    });
+  },
+
+  async deleteRole(id: string) {
+    return request<any>(`/admin/roles/${id}`, {
+      method: "DELETE",
+    });
   },
 
   async getPermissions() {
@@ -193,10 +322,34 @@ export const adminService = {
     return request<any[]>("/admin/campaigns");
   },
 
+  async getPublicActiveCampaigns() {
+    return request<any[]>("/campaigns/active");
+  },
+
   async createCampaign(data: any) {
     return request<any>("/admin/campaigns", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  async updateCampaign(id: string, data: any) {
+    return request<any>(`/admin/campaigns/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async toggleCampaignStatus(id: string, isActive: boolean) {
+    return request<any>(`/admin/campaigns/${id}/toggle`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    });
+  },
+
+  async deleteCampaign(id: string) {
+    return request<any>(`/admin/campaigns/${id}`, {
+      method: "DELETE",
     });
   },
 
@@ -283,6 +436,127 @@ export const adminService = {
       };
 
       reader.readAsDataURL(file);
+    });
+  },
+
+  // 10. Media Library Centralized Management
+  async getMediaList(params?: { search?: string; mediaType?: string; page?: number; limit?: number }) {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.mediaType && params.mediaType !== "ALL") q.set("mediaType", params.mediaType);
+    if (params?.page) q.set("page", String(params.page));
+    if (params?.limit) q.set("limit", String(params.limit));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    return request<any[]>(`/admin/media${qs}`);
+  },
+
+  async getMediaById(id: string) {
+    return request<any>(`/admin/media/${id}`);
+  },
+
+  async uploadMedia(
+    file: File,
+    metadata?: { alt?: string; caption?: string },
+    onProgress?: (progress: number) => void
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.round((event.loaded / event.total) * 45);
+          onProgress(percent);
+        }
+      };
+
+      reader.onload = async () => {
+        try {
+          if (onProgress) onProgress(50);
+          const fileBase64 = reader.result as string;
+          const token = localStorage.getItem("pg_admin_token");
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+
+          if (onProgress) onProgress(70);
+
+          const res = await fetch("/api/v1/admin/media/upload", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              fileBase64,
+              fileName: file.name,
+              fileType: file.type,
+              alt: metadata?.alt,
+              caption: metadata?.caption,
+            }),
+          });
+
+          if (onProgress) onProgress(90);
+
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok || json.success === false) {
+            const errMessage = json.error?.message || `خطای سرور (${res.status})`;
+            throw new ApiError(errMessage, json.error?.code || "UPLOAD_ERROR", res.status);
+          }
+
+          if (onProgress) onProgress(100);
+          resolve(json.data);
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new ApiError("خطا در خواندن فایل", "FILE_READ_ERROR", 400));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  },
+
+  async updateMedia(id: string, data: { alt?: string; caption?: string }) {
+    return request<any>(`/admin/media/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async checkMediaUsage(id: string) {
+    return request<{ inUse: boolean; references: string[] }>(`/admin/media/${id}/usage`);
+  },
+
+  async deleteMedia(id: string, force = false) {
+    return request<{ deleted: boolean }>(`/admin/media/${id}?force=${force}`, {
+      method: "DELETE",
+    });
+  },
+
+  // 11. FAQ Management (Single Source of Truth)
+  async getFaqs() {
+    return request<any[]>("/admin/faqs");
+  },
+
+  async createFaq(data: { question: string; answer: string; category?: string; sortOrder?: number; isPublished?: boolean }) {
+    return request<any>("/admin/faqs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateFaq(id: string, data: Partial<{ question: string; answer: string; category?: string; sortOrder?: number; isPublished?: boolean }>) {
+    return request<any>(`/admin/faqs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteFaq(id: string) {
+    return request<{ deleted: boolean }>(`/admin/faqs/${id}`, {
+      method: "DELETE",
     });
   },
 };

@@ -12,6 +12,10 @@ export class ProductService {
     return productRepository.findById(id);
   }
 
+  async getProductBySlug(slug: string): Promise<ProductDTO | null> {
+    return productRepository.findBySlug(slug);
+  }
+
   async createProduct(data: any, userId?: string): Promise<ProductDTO> {
     const product = await productRepository.create(data);
     await auditRepository.log({
@@ -38,16 +42,32 @@ export class ProductService {
     return updated;
   }
 
-  async bulkUpdatePrices(productIds: string[], percentageChange: number, userId?: string): Promise<number> {
-    const affected = await productRepository.bulkUpdatePrices(productIds, percentageChange);
+  async bulkUpdatePrices(
+    options: {
+      type?: "PERCENTAGE" | "FIXED_AMOUNT";
+      value: number;
+      percentageChange?: number;
+      productIds?: string[];
+      categoryId?: string;
+      roundToNearest?: number;
+    },
+    userId?: string
+  ): Promise<{ affectedCount: number; updatedProducts: { id: string; name: string; oldPrice: number; newPrice: number }[] }> {
+    const result = await productRepository.bulkUpdatePrices(options);
     await auditRepository.log({
       userId,
       action: "PRICES_BULK_UPDATED",
       entity: "Product",
       entityId: "bulk",
-      metadata: { count: affected, percentageChange, productIds },
+      metadata: {
+        count: result.affectedCount,
+        type: options.type || "PERCENTAGE",
+        value: options.value !== undefined ? options.value : options.percentageChange,
+        roundToNearest: options.roundToNearest,
+        targetCategory: options.categoryId,
+      },
     });
-    return affected;
+    return result;
   }
 
   async deleteProduct(id: string, userId?: string): Promise<boolean> {
@@ -67,6 +87,10 @@ export class ProductService {
     return categoryRepository.findAll();
   }
 
+  async getCategoryById(id: string): Promise<CategoryDTO | null> {
+    return categoryRepository.findById(id);
+  }
+
   async createCategory(data: any, userId?: string): Promise<CategoryDTO> {
     const cat = await categoryRepository.create(data);
     await auditRepository.log({
@@ -77,6 +101,33 @@ export class ProductService {
       metadata: { name: cat.name, slug: cat.slug },
     });
     return cat;
+  }
+
+  async updateCategory(id: string, data: any, userId?: string): Promise<CategoryDTO | null> {
+    const updated = await categoryRepository.update(id, data);
+    if (updated) {
+      await auditRepository.log({
+        userId,
+        action: "CATEGORY_UPDATED",
+        entity: "Category",
+        entityId: id,
+        metadata: { name: updated.name, slug: updated.slug },
+      });
+    }
+    return updated;
+  }
+
+  async deleteCategory(id: string, userId?: string): Promise<{ success: boolean; error?: string }> {
+    const result = await categoryRepository.delete(id);
+    if (result.success) {
+      await auditRepository.log({
+        userId,
+        action: "CATEGORY_DELETED",
+        entity: "Category",
+        entityId: id,
+      });
+    }
+    return result;
   }
 }
 

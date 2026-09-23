@@ -19,18 +19,66 @@ import {
   VolumeX,
   RotateCcw,
   RefreshCw,
-  Server,
-  Link2,
+  Plus,
+  Trash2,
+  Settings,
+  Layers,
+  MapPin,
+  Phone,
+  Mail,
+  Clock,
+  ShieldCheck,
 } from "lucide-react";
 
 export const ContentManagementView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"hero" | "about" | "badges" | "faq">("hero");
+  const [activeTab, setActiveTab] = useState<"hero" | "about" | "faqs" | "achievements" | "steps" | "footer">("hero");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Content states
+  // Form states
   const [heroTitle, setHeroTitle] = useState("تأمین‌کننده برتر گوشت و فرآورده‌های پروتئینی لوکس");
   const [heroSubtitle, setHeroSubtitle] = useState("ارائه برترین برش‌های استیک، درای‌ایج و فیله با ناوگان سردخانه‌ای اختصاصی");
   const [heroVideoUrl, setHeroVideoUrl] = useState(siteConfig.heroVideo);
+  const [heroCtaText, setHeroCtaText] = useState("مشاهده کاتالوگ سازمانی");
+
+  const [aboutTitle, setAboutTitle] = useState("داستان پروتئین گلمحمدی");
+  const [aboutSubtitle, setAboutSubtitle] = useState("تعهد به کیفیت بی‌نظیر از مزرعه تا رستوران");
+  const [aboutText, setAboutText] = useState(
+    "پروتئین گلمحمدی با بیش از دو دهه تجربه در زمینه تأمین پروتئین هتل‌ها، رستوران‌های لوکس و سازمان‌های بزرگ، بالاترین استانداردهای بهداشتی و زنجیره سرد را فراهم نموده است."
+  );
+
+  const [faqs, setFaqs] = useState([
+    {
+      q: "آیا ارسال با خودروهای مجهز به دیتالاگر دما صورت می‌گیرد؟",
+      a: "بله، تمامی ناوگان توزیع مجهز به سیستم پایش آنلاین برودت تا منفی ۱۸ درجه سانتی‌گراد هستند.",
+    },
+    {
+      q: "شرایط تسویه حساب سازمانی چگونه است؟",
+      a: "پس از اعتبارسنجی اولیه، امکان تسویه اعتباری ۳۰ الی ۴۵ روزه برای هتل‌ها و رستوران‌های طرف قرارداد مهیاست.",
+    },
+  ]);
+
+  const [achievements, setAchievements] = useState([
+    { label: "سال سابقه درخشان", value: "۲۰+" },
+    { label: "رستوران و هتل همکار", value: "۴۵۰+" },
+    { label: "دقت تحویل به موقع", value: "۹۹.۸٪" },
+    { label: "تن پروتئین توزیع ماهانه", value: "۱۲۰+" },
+  ]);
+
+  const [steps, setSteps] = useState([
+    { number: "۰۱", title: "ثبت درخواست یا استعلام", desc: "تماس مستقیم یا ارسال سبد محصولات مورد نیاز پروتئینی" },
+    { number: "۰۲", title: "مشاوره تخصصی و عیارسنجی برش", desc: "تنظیم وزن، پخت، استخوان‌گیری یا فیله بر اساس استاندارد سرآشپز" },
+    { number: "۰۳", title: "بسته‌بندی وکیوم و زنجیره سرد", desc: "آماده‌سازی در کشتارگاه صنعتی و ارسال با کامیون‌های یخچال‌دار مجهز" },
+    { number: "۰۴", title: "تحویل در محل مشتری", desc: "بازرسی و کنترل کیفیت در لحظه تحویل با فاکتور رسمی و گواهی دامپزشکی" },
+  ]);
+
+  const [footerInfo, setFooterInfo] = useState({
+    address: "تهران، میدان مرکزی میوه و تبارک، غرفه ۱۲ پروتئین گلمحمدی",
+    phone: "۰۲۱-۵۵۵۵۸۸۹۹",
+    email: "info@golmohammadi-meat.ir",
+    workingHours: "شنبه تا پنج‌شنبه: ۸:۰۰ الی ۱۸:۰۰",
+    copyright: "تمامی حقوق مادی و معنوی برای پروتئین گلمحمدی محفوظ است.",
+  });
 
   // Video upload states
   const [isUploading, setIsUploading] = useState(false);
@@ -40,10 +88,17 @@ export const ContentManagementView: React.FC = () => {
 
   useEffect(() => {
     adminService.getSettings().then((settings) => {
-      if (settings?.heroVideoUrl) {
-        setHeroVideoUrl(settings.heroVideoUrl);
+      if (settings) {
+        if (settings.heroVideoUrl) setHeroVideoUrl(settings.heroVideoUrl);
+        if (settings.heroTitle) setHeroTitle(settings.heroTitle);
+        if (settings.heroSubtitle) setHeroSubtitle(settings.heroSubtitle);
+        if (settings.aboutText) setAboutText(settings.aboutText);
+        if (settings.faqs && Array.isArray(settings.faqs)) setFaqs(settings.faqs);
+        if (settings.achievements && Array.isArray(settings.achievements)) setAchievements(settings.achievements);
+        if (settings.steps && Array.isArray(settings.steps)) setSteps(settings.steps);
+        if (settings.footerInfo) setFooterInfo({ ...footerInfo, ...settings.footerInfo });
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setIsLoading(false));
   }, []);
 
   const handleVideoFileSelect = async (file: File) => {
@@ -81,269 +136,489 @@ export const ContentManagementView: React.FC = () => {
     }
   };
 
-  const [aboutText, setAboutText] = useState(
-    "پروتئین گلمحمدی با بیش از دو دهه تجربه در زمینه تأمین پروتئین هتل‌ها، رستوران‌های لوکس و سازمان‌های بزرگ، بالاترین استانداردهای بهداشتی و زنجیره سرد را فراهم نموده است."
-  );
-
-  const [faqs, setFaqs] = useState([
-    {
-      q: "آیا ارسال با خودروهای مجهز به دیتالاگر دما صورت می‌گیرد؟",
-      a: "بله، تمامی ناوگان توزیع مجهز به سیستم پایش آنلاین برودت تا منفی ۱۸ درجه سانتی‌گراد هستند.",
-    },
-    {
-      q: "شرایط تسویه حساب سازمانی چگونه است؟",
-      a: "پس از اعتبارسنجی اولیه، امکان تسویه اعتباری ۳۰ الی ۴۵ روزه برای هتل‌ها و رستوران‌های طرف قرارداد مهیاست.",
-    },
-  ]);
-
-  const handleSave = async () => {
+  const handleSaveAll = async () => {
     setIsSaving(true);
     try {
       await adminService.updateSettings({
+        heroTitle,
+        heroSubtitle,
         heroVideoUrl,
+        heroCtaText,
+        aboutTitle,
+        aboutSubtitle,
+        aboutText,
+        faqs,
+        achievements,
+        steps,
+        footerInfo,
       });
-      showToast("محتوای صفحات و ویدیوی هیروسکشن با موفقیت در سرور ذخیره شد.", "success");
+      showToast("تغییرات محتوای لندینگ و تنظیمات با موفقیت ذخیره شد.", "success");
     } catch (err: any) {
-      showToast(err.message || "خطا در ذخیره تغییرات", "error");
+      showToast(err.message || "خطا در ذخیره تنظیمات محتوا", "error");
     } finally {
       setIsSaving(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-6 h-6 animate-spin text-[#124A57]" />
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
-          <h2 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-[#124A57] dark:text-teal-400" />
-            <span>مدیریت محتوای پورتال عمومی (CMS)</span>
-          </h2>
+          <h1 className="text-xl font-black text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+            <FileText className="w-6 h-6 text-[#124A57] dark:text-teal-400" />
+            مدیریت محتوای صفحات و لندینگ (CMS)
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            ویرایش متن‌ها، آپلود ویدئوی هدر، اطلاعات درباره ما و پرسش‌های متداول
+            مدیریت متون، بخش هیرو، ویدیوها، داستان برند، سوالات متداول و اطلاعات تماس وب‌سایت عمومی
           </p>
         </div>
-
-        <AdminButton
-          variant="primary"
-          onClick={handleSave}
-          isLoading={isSaving}
-          icon={<Save className="w-4 h-4" />}
-        >
-          ذخیره تغییرات محتوا
-        </AdminButton>
+        <div className="flex items-center gap-3">
+          <AdminButton
+            onClick={handleSaveAll}
+            isLoading={isSaving}
+            className="bg-[#124A57] hover:bg-[#0E353E] text-white"
+          >
+            <Save className="w-4 h-4 ml-1.5" />
+            ذخیره تغییرات کلی
+          </AdminButton>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <button
-          onClick={() => setActiveTab("hero")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "hero"
-              ? "bg-[#124A57] text-white shadow-xs"
-              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          }`}
-        >
-          <Film className="w-4 h-4" />
-          <span>بخش ویدئویی هدر (Hero)</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("about")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "about"
-              ? "bg-[#124A57] text-white shadow-xs"
-              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          <span>درباره ما و گواهینامه‌ها</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("faq")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === "faq"
-              ? "bg-[#124A57] text-white shadow-xs"
-              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          }`}
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span>پرسش‌های متداول (FAQ)</span>
-        </button>
+      {/* Tabs Navigation */}
+      <div className="flex overflow-x-auto gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+        {[
+          { id: "hero", label: "هیرو و ویدیو بنر", icon: <Film className="w-4 h-4" /> },
+          { id: "about", label: "داستان و درباره ما", icon: <FileText className="w-4 h-4" /> },
+          { id: "faqs", label: "سوالات متداول (FAQ)", icon: <HelpCircle className="w-4 h-4" /> },
+          { id: "achievements", label: "آمار و افتخارات", icon: <Award className="w-4 h-4" /> },
+          { id: "steps", label: "مراحل همکاری", icon: <Layers className="w-4 h-4" /> },
+          { id: "footer", label: "فوتر و اطلاعات تماس", icon: <MapPin className="w-4 h-4" /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+              activeTab === tab.id
+                ? "bg-[#124A57] text-white shadow-xs"
+                : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Hero Tab */}
+      {/* Tab 1: Hero & Video Banner */}
       {activeTab === "hero" && (
-        <div className="space-y-6">
-          <AdminCard title="محتوای متنی هیروسکشن" subtitle="عناوین نمایشی روی ویدیوی هدر">
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  تیتر اصلی (Headline)
-                </label>
-                <input
-                  type="text"
-                  value={heroTitle}
-                  onChange={(e) => setHeroTitle(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#124A57]"
-                />
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <AdminCard title="متون اصلی بخش هیرو (Hero Section)">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    عنوان اصلی هیرو
+                  </label>
+                  <input
+                    type="text"
+                    value={heroTitle}
+                    onChange={(e) => setHeroTitle(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus:ring-2 focus:ring-[#124A57] outline-none"
+                  />
+                </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  زیرعنوان توضیحی (Sub-headline)
-                </label>
-                <textarea
-                  rows={2}
-                  value={heroSubtitle}
-                  onChange={(e) => setHeroSubtitle(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#124A57]"
-                />
-              </div>
-            </div>
-          </AdminCard>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    توضیحات زیرعنوان
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={heroSubtitle}
+                    onChange={(e) => setHeroSubtitle(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus:ring-2 focus:ring-[#124A57] outline-none"
+                  />
+                </div>
 
-          <AdminCard title="آپلود ویدیوی هیروسکشن روی سرور" subtitle="فایل ویدیو مستقیماً در سرور ذخیره و در صفحه اصلی نمایش داده می‌شود">
-            <div className="space-y-4 text-xs">
-              {/* Upload Dropzone */}
-              <div
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  if (e.dataTransfer.files?.[0]) handleVideoFileSelect(e.dataTransfer.files[0]);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
-                  isDragging
-                    ? "border-[#124A57] bg-[#124A57]/10 dark:bg-[#124A57]/20"
-                    : "border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40"
-                }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) handleVideoFileSelect(e.target.files[0]);
-                  }}
-                />
-
-                <div className="flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-[#124A57]/10 dark:bg-[#124A57]/30 text-[#124A57] dark:text-teal-400 flex items-center justify-center">
-                    {isUploading ? (
-                      <RefreshCw className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <UploadCloud className="w-6 h-6" />
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200">
-                      {isUploading ? "در حال آپلود ویدیو روی سرور..." : "آپلود فایل ویدیوی هیروسکشن جدید"}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      فرمت‌های MP4, WebM, MOV تا سقف ۱۰۰ مگابایت
-                    </p>
-                  </div>
-
-                  {isUploading ? (
-                    <div className="w-full max-w-xs space-y-1.5">
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                        <div
-                          className="bg-[#124A57] h-full rounded-full transition-all"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <span className="text-[10px] font-mono">{uploadProgress}%</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-4 py-2 bg-[#124A57] hover:bg-[#0f3c46] text-white rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-                      >
-                        <FileVideo className="w-4 h-4" />
-                        <span>انتخاب و آپلود ویدیو</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setHeroVideoUrl(siteConfig.heroVideo);
-                          showToast("به ویدیوی پیش‌فرض تغییر یافت.", "info");
-                        }}
-                        className="px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        <span>پیش‌فرض</span>
-                      </button>
-                    </div>
-                  )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    متن دکمه دعوت به اقدام (CTA)
+                  </label>
+                  <input
+                    type="text"
+                    value={heroCtaText}
+                    onChange={(e) => setHeroCtaText(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium focus:ring-2 focus:ring-[#124A57] outline-none"
+                  />
                 </div>
               </div>
+            </AdminCard>
+          </div>
 
-              {/* URL & Status */}
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  آدرس ویدیوی فعال هیرو
-                </label>
-                <div className="flex items-center gap-2">
+          <div className="space-y-6">
+            <AdminCard title="ویدیوی پس‌زمینه هیرو">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    آدرس ویدیو (URL یا مسیر فایل)
+                  </label>
                   <input
                     type="text"
                     value={heroVideoUrl}
                     onChange={(e) => setHeroVideoUrl(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#124A57] font-mono text-[11px] ltr"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-[11px] font-mono outline-none"
                   />
                 </div>
+
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    if (e.dataTransfer.files?.[0]) {
+                      handleVideoFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors ${
+                    isDragging
+                      ? "border-[#124A57] bg-teal-50/50 dark:bg-teal-950/20"
+                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-slate-50/50 dark:bg-slate-800/50"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,video/mkv"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleVideoFileSelect(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-teal-100 dark:bg-teal-950 flex items-center justify-center text-[#124A57] dark:text-teal-400">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
+                    فایل ویدیویی را اینجا رها کنید
+                  </div>
+                  <div className="text-[11px] text-slate-400 mb-4">
+                    فرمت‌های MP4, WebM (حداکثر ۱۰۰ مگابایت)
+                  </div>
+                  <AdminButton
+                    onClick={() => fileInputRef.current?.click()}
+                    isLoading={isUploading}
+                    variant="outline"
+                    className="text-xs"
+                  >
+                    انتخاب از رایانه
+                  </AdminButton>
+
+                  {isUploading && (
+                    <div className="mt-4 space-y-1.5">
+                      <div className="flex justify-between text-[10px] text-slate-500 font-bold">
+                        <span>در حال آپلود ویدیو...</span>
+                        <span>{uploadProgress}٪</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#124A57] transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {heroVideoUrl && (
+                  <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-black aspect-video relative">
+                    <video
+                      src={heroVideoUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-xs px-2 py-1 rounded text-[10px] text-white">
+                      پیش‌نمایش زنده ویدیو
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          </AdminCard>
+            </AdminCard>
+          </div>
         </div>
       )}
 
-      {/* About Tab */}
+      {/* Tab 2: About / Story */}
       {activeTab === "about" && (
-        <AdminCard title="داستان برند و تعهد کیفیت">
-          <div className="space-y-4 text-xs">
+        <AdminCard title="مدیریت بخش درباره ما و داستان برند">
+          <div className="space-y-4 max-w-3xl">
             <div>
-              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                متن معرفی پروتئین گلمحمدی
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                عنوان بخش
+              </label>
+              <input
+                type="text"
+                value={aboutTitle}
+                onChange={(e) => setAboutTitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                زیرعنوان
+              </label>
+              <input
+                type="text"
+                value={aboutSubtitle}
+                onChange={(e) => setAboutSubtitle(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                متن کامل درباره ما
               </label>
               <textarea
                 rows={5}
                 value={aboutText}
                 onChange={(e) => setAboutText(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#124A57] leading-relaxed"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none leading-relaxed"
               />
             </div>
           </div>
         </AdminCard>
       )}
 
-      {/* FAQ Tab */}
-      {activeTab === "faq" && (
-        <AdminCard title="پرسش‌های پرتکرار مشتریان">
-          <div className="space-y-4 text-xs">
-            {faqs.map((faq, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-2"
+      {/* Tab 3: FAQs */}
+      {activeTab === "faqs" && (
+        <AdminCard title="مدیریت سوالات متداول (FAQ)">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                سوالاتی که در بخش پایانی لندینگ پیج برای مشتریان B2B نمایش داده می‌شود.
+              </span>
+              <AdminButton
+                onClick={() => setFaqs([...faqs, { q: "سوال جدید؟", a: "پاسخ سوال..." }])}
+                className="bg-[#124A57] text-white text-xs"
               >
-                <div className="font-bold text-slate-800 dark:text-slate-200">
-                  سؤال {idx + 1}: {faq.q}
+                <Plus className="w-4 h-4 ml-1" />
+                افزودن سوال جدید
+              </AdminButton>
+            </div>
+
+            <div className="space-y-4">
+              {faqs.map((faq, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-950 text-[#124A57] dark:text-teal-400 text-xs font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={faq.q}
+                      onChange={(e) => {
+                        const updated = [...faqs];
+                        updated[idx].q = e.target.value;
+                        setFaqs(updated);
+                      }}
+                      placeholder="متن سوال..."
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none"
+                    />
+                    <button
+                      onClick={() => setFaqs(faqs.filter((_, i) => i !== idx))}
+                      className="p-2 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                      title="حذف سوال"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div>
+                    <textarea
+                      rows={2}
+                      value={faq.a}
+                      onChange={(e) => {
+                        const updated = [...faqs];
+                        updated[idx].a = e.target.value;
+                        setFaqs(updated);
+                      }}
+                      placeholder="پاسخ سوال..."
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-700 dark:text-slate-300 outline-none leading-relaxed"
+                    />
+                  </div>
                 </div>
-                <div className="text-slate-600 dark:text-slate-400">
-                  پاسخ: {faq.a}
+              ))}
+            </div>
+          </div>
+        </AdminCard>
+      )}
+
+      {/* Tab 4: Achievements */}
+      {activeTab === "achievements" && (
+        <AdminCard title="مدیریت آمار و ارقام کلیدی (Achievements)">
+          <div className="space-y-4 max-w-3xl">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              این آمار به صورت نوار برجسته در بخش بالایی لندینگ نمایش داده می‌شود.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {achievements.map((item, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      مقدار / عدد (مثال: ۲۰+)
+                    </label>
+                    <input
+                      type="text"
+                      value={item.value}
+                      onChange={(e) => {
+                        const updated = [...achievements];
+                        updated[idx].value = e.target.value;
+                        setAchievements(updated);
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-black text-[#124A57] dark:text-teal-400 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                      عنوان شاخص
+                    </label>
+                    <input
+                      type="text"
+                      value={item.label}
+                      onChange={(e) => {
+                        const updated = [...achievements];
+                        updated[idx].label = e.target.value;
+                        setAchievements(updated);
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-100 outline-none"
+                    />
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        </AdminCard>
+      )}
+
+      {/* Tab 5: Cooperation Steps */}
+      {activeTab === "steps" && (
+        <AdminCard title="مدیریت مراحل همکاری (How We Work)">
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              نحوه ثبت سفارش و تأمین پروتئین هتل‌ها و رستوران‌ها در ۴ مرحله.
+            </p>
+            <div className="space-y-4">
+              {steps.map((st, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <div className="w-10 h-10 rounded-xl bg-[#124A57] text-white font-black text-sm flex items-center justify-center shrink-0">
+                    {st.number}
+                  </div>
+                  <div className="flex-1 space-y-2 w-full">
+                    <input
+                      type="text"
+                      value={st.title}
+                      onChange={(e) => {
+                        const updated = [...steps];
+                        updated[idx].title = e.target.value;
+                        setSteps(updated);
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={st.desc}
+                      onChange={(e) => {
+                        const updated = [...steps];
+                        updated[idx].desc = e.target.value;
+                        setSteps(updated);
+                      }}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-300 outline-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </AdminCard>
+      )}
+
+      {/* Tab 6: Footer & Contact */}
+      {activeTab === "footer" && (
+        <AdminCard title="اطلاعات تماس و فوتر سایت">
+          <div className="space-y-4 max-w-3xl">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                آدرس دفتر مرکزی و انبار
+              </label>
+              <input
+                type="text"
+                value={footerInfo.address}
+                onChange={(e) => setFooterInfo({ ...footerInfo, address: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  شماره تماس سازمانی
+                </label>
+                <input
+                  type="text"
+                  value={footerInfo.phone}
+                  onChange={(e) => setFooterInfo({ ...footerInfo, phone: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+                />
               </div>
-            ))}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  ایمیل پشتیبانی
+                </label>
+                <input
+                  type="text"
+                  value={footerInfo.email}
+                  onChange={(e) => setFooterInfo({ ...footerInfo, email: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                ساعات کاری پاسخگویی
+              </label>
+              <input
+                type="text"
+                value={footerInfo.workingHours}
+                onChange={(e) => setFooterInfo({ ...footerInfo, workingHours: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                متن کپی‌رایت فوتر
+              </label>
+              <input
+                type="text"
+                value={footerInfo.copyright}
+                onChange={(e) => setFooterInfo({ ...footerInfo, copyright: e.target.value })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs font-medium outline-none"
+              />
+            </div>
           </div>
         </AdminCard>
       )}

@@ -44,6 +44,10 @@ export function formatPersianPrice(amount: number | string | null | undefined, s
   return suffix ? `${formatted} ${suffix}` : formatted;
 }
 
+export const formatPrice = (amount: number | string | null | undefined): string => {
+  return formatPersianNumber(amount);
+};
+
 /**
  * Formats phone numbers into Persian digits with standard separators.
  */

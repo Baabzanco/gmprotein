@@ -3,6 +3,18 @@ import { logger } from "../utils/logger";
 import { sendError } from "../utils/response";
 import { config } from "../config";
 
+export class AppError extends Error {
+  statusCode: number;
+  code: string;
+
+  constructor(message: string, statusCode = 400, code = "APP_ERROR") {
+    super(message);
+    this.name = "AppError";
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
   logger.error(`Unhandled Error at ${req.method} ${req.url}:`, err);
 

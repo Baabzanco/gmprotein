@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { productController } from "../../controllers/product.controller";
 import { validateBody } from "../../middleware/validate";
-import { createCategorySchema } from "../../validators";
+import { createCategorySchema, updateCategorySchema } from "../../validators";
 import { requireAuth, requireRole } from "../../middleware/auth";
 
 const router = Router();
@@ -17,15 +17,39 @@ router.post(
   requireAuth,
   requireRole("SUPER_ADMIN", "ADMIN", "PRODUCT_MANAGER"),
   validateBody(createCategorySchema),
-  async (req, res, next) => {
-    try {
-      const { productService } = await import("../../services/product.service");
-      const { sendSuccess } = await import("../../utils/response");
-      const cat = await productService.createCategory(req.body, (req as any).user?.id);
-      return sendSuccess(res, cat, 201);
-    } catch (err) {
-      next(err);
-    }
+  (req, res, next) => {
+    productController.createCategory(req as any, res, next);
+  }
+);
+
+// Admin Update Category
+router.put(
+  "/:id",
+  requireAuth,
+  requireRole("SUPER_ADMIN", "ADMIN", "PRODUCT_MANAGER"),
+  validateBody(updateCategorySchema),
+  (req, res, next) => {
+    productController.updateCategory(req as any, res, next);
+  }
+);
+
+router.patch(
+  "/:id",
+  requireAuth,
+  requireRole("SUPER_ADMIN", "ADMIN", "PRODUCT_MANAGER"),
+  validateBody(updateCategorySchema),
+  (req, res, next) => {
+    productController.updateCategory(req as any, res, next);
+  }
+);
+
+// Admin Delete Category (with safeguard check)
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("SUPER_ADMIN", "ADMIN", "PRODUCT_MANAGER"),
+  (req, res, next) => {
+    productController.deleteCategory(req as any, res, next);
   }
 );
 

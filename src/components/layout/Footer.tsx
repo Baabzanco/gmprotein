@@ -103,6 +103,15 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <button
+                  onClick={() => navigate("/blog")}
+                  className="hover:text-[#CD78B3] transition-colors flex items-center gap-1.5 cursor-pointer text-right w-full"
+                >
+                  <ChevronLeft className="w-3 h-3 text-[#124A57]" />
+                  <span>وبلاگ تخصصی و مقالات</span>
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => navigate("/admin/dashboard")}
                   className="hover:text-[#CD78B3] text-teal-400 font-medium transition-colors flex items-center gap-1.5 text-right cursor-pointer"
                 >

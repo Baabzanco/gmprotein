@@ -75,6 +75,8 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        isActive: user.isActive,
+        status: user.isActive ? "ACTIVE" : "SUSPENDED",
         roles: user.roles,
         permissions: user.permissions,
         lastLoginAt: user.lastLoginAt,

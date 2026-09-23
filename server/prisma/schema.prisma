@@ -27,6 +27,7 @@ model User {
   userRoles    UserRole[]
   auditLogs    AuditLog[]
   blogPosts    BlogPost[]
+  followedUpQuotations QuotationRequest[] @relation("QuotationFollowup")
 
   @@index([email])
   @@index([phone])
@@ -125,6 +126,9 @@ model Product {
   deletedAt        DateTime?
 
   category         Category          @relation(fields: [categoryId], references: [id])
+  allowCustomWeight Boolean          @default(true)
+  packageOptions   ProductPackageOption[]
+  features         ProductFeature[]
   images           ProductImage[]
   prices           ProductPrice[]
   discountProducts DiscountProduct[]
@@ -136,6 +140,38 @@ model Product {
   @@index([categoryId])
   @@index([isAvailable])
   @@index([isFeatured])
+}
+
+model ProductFeature {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  value     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([sortOrder])
+}
+
+model ProductPackageOption {
+  id        String   @id @default(cuid())
+  productId String
+  weightKg  Decimal  @db.Decimal(10, 2)
+  label     String
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isActive])
 }
 
 model ProductImage {
@@ -214,19 +250,23 @@ model DiscountCategory {
 }
 
 model Campaign {
-  id          String            @id @default(cuid())
-  title       String
-  slug        String            @unique
-  description String
-  image       String
-  badge       String
-  startAt     DateTime?
-  endAt       DateTime?
-  isActive    Boolean           @default(true)
-  sortOrder   Int               @default(0)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  deletedAt   DateTime?
+  id                String            @id @default(cuid())
+  title             String
+  slug              String            @unique
+  description       String
+  shortDescription  String?
+  image             String
+  badge             String
+  ctaLabel          String?
+  ctaLink           String?
+  highlightDiscount String?
+  startAt           DateTime?
+  endAt             DateTime?
+  isActive          Boolean           @default(true)
+  sortOrder         Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
 
   campaignProducts CampaignProduct[]
 
@@ -252,21 +292,26 @@ model CampaignProduct {
 // -------------------------------------------------------------
 
 model QuotationRequest {
-  id           String          @id @default(cuid())
-  customerName String
-  companyName  String?
-  phone        String
-  email        String?
-  notes        String?
-  status       String          @default("PENDING") // PENDING, REVIEWING, QUOTED, ACCEPTED, REJECTED, CANCELLED
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  deletedAt    DateTime?
+  id             String          @id @default(cuid())
+  customerName   String
+  companyName    String?
+  phone          String
+  email          String?
+  notes          String?
+  status         String          @default("PENDING") // PENDING, REVIEWING, QUOTED, ACCEPTED, REJECTED, CANCELLED
+  followupStatus String          @default("NEEDS_FOLLOW_UP") // NEEDS_FOLLOW_UP, FOLLOWED_UP
+  followedUpAt   DateTime?
+  followedUpById String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
 
-  items        QuotationItem[]
+  items          QuotationItem[]
+  followedUpBy   User?           @relation("QuotationFollowup", fields: [followedUpById], references: [id])
 
   @@index([phone])
   @@index([status])
+  @@index([followupStatus])
   @@index([createdAt])
 }
 
@@ -446,12 +491,19 @@ model BlogPost {
   updatedAt      DateTime           @updatedAt
   seoTitle       String?
   seoDescription String?
+  seoKeywords    String?
+  canonicalUrl   String?
+  ogTitle        String?
+  ogDescription  String?
+  ogImage        String?
 
   author         User?              @relation(fields: [authorId], references: [id])
   categories     BlogPostCategory[]
+  tags           BlogPostTag[]
 
   @@index([slug])
   @@index([status])
+  @@index([publishedAt])
 }
 
 model BlogCategory {
@@ -459,6 +511,7 @@ model BlogCategory {
   name        String
   slug        String             @unique
   description String?
+  isActive    Boolean            @default(true)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
@@ -475,6 +528,28 @@ model BlogPostCategory {
   category BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@id([postId, categoryId])
+}
+
+model BlogTag {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  posts     BlogPostTag[]
+
+  @@index([slug])
+}
+
+model BlogPostTag {
+  postId String
+  tagId  String
+
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
 }
 
 // -------------------------------------------------------------
@@ -499,3 +574,30 @@ model AuditLog {
   @@index([entity])
   @@index([createdAt])
 }
+
+// -------------------------------------------------------------
+// 9. CENTRALIZED MEDIA LIBRARY
+// -------------------------------------------------------------
+
+model Media {
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String
+  mimeType     String
+  extension    String
+  size         Int
+  url          String
+  mediaType    String   // IMAGE, VIDEO, DOCUMENT, OTHER
+  width        Int?
+  height       Int?
+  duration     Decimal? @db.Decimal(10, 2)
+  alt          String?
+  caption      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([mediaType])
+  @@index([mimeType])
+  @@index([createdAt])
+}
+

@@ -5,8 +5,10 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  isActive?: boolean;
+  status?: "ACTIVE" | "SUSPENDED";
   roles: string[];
-  permissions?: { action: string; resource: string }[];
+  permissions?: (string | { action: string; resource: string })[];
   lastLoginAt?: string | null;
 }
 
@@ -19,7 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   hasRole: (...roles: string[]) => boolean;
-  hasPermission: (action: string, resource: string) => boolean;
+  hasPermission: (permissionOrAction: string, resource?: string) => boolean;
   canAccess: (module: string) => boolean;
 }
 
@@ -136,15 +138,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roles.some((r) => user.roles.includes(r));
   };
 
-  const hasPermission = (action: string, resource: string): boolean => {
+  const hasPermission = (permissionOrAction: string, resource?: string): boolean => {
     if (!user) return false;
-    if (user.roles.includes("SUPER_ADMIN")) return true;
-    if (!user.permissions) return false;
-    return user.permissions.some(
-      (p) =>
-        (p.action === "MANAGE" || p.action === action) &&
-        (p.resource === "*" || p.resource === resource)
-    );
+    if (user.roles?.includes("SUPER_ADMIN")) return true;
+    if (!user.permissions || user.permissions.length === 0) return false;
+
+    let targetCode = permissionOrAction;
+    if (resource) {
+      targetCode = `${resource}.${permissionOrAction.toLowerCase()}`;
+    }
+
+    return user.permissions.some((p) => {
+      if (typeof p === "string") {
+        if (p === "*" || p === "MANAGE:*" || p === "*.*") return true;
+        if (p === targetCode) return true;
+        const [res] = targetCode.split(".");
+        if (p === `${res}.*` || p === `MANAGE:${res}`) return true;
+        return false;
+      }
+      if (typeof p === "object" && p !== null) {
+        if (p.action === "MANAGE" || p.resource === "*") return true;
+        if (resource && p.action.toLowerCase() === permissionOrAction.toLowerCase() && p.resource === resource) return true;
+        const [res, act] = targetCode.split(".");
+        if (p.resource === res && (p.action.toLowerCase() === act?.toLowerCase() || p.action === "MANAGE")) return true;
+      }
+      return false;
+    });
   };
 
   const canAccess = (module: string): boolean => {

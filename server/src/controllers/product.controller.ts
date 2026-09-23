@@ -21,9 +21,26 @@ export class ProductController {
   async getProductById(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const product = await productService.getProductById(id);
+      let product = await productService.getProductById(id);
+      if (!product) {
+        // Fallback to slug search
+        product = await productService.getProductBySlug(id);
+      }
       if (!product) {
         return sendError(res, "PRODUCT_NOT_FOUND", "محصول مورد نظر یافت نشد", 404);
+      }
+      return sendSuccess(res, product, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async getProductBySlug(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { slug } = req.params;
+      const product = await productService.getProductBySlug(slug);
+      if (!product) {
+        return sendError(res, "PRODUCT_NOT_FOUND", "محصول مورد نظر با این مشخصه یافت نشد", 404);
       }
       return sendSuccess(res, product, 200);
     } catch (err: any) {
@@ -64,12 +81,35 @@ export class ProductController {
 
   async bulkUpdatePrices(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { productIds, percentageChange } = req.body;
-      if (!Array.isArray(productIds) || typeof percentageChange !== "number") {
-        return sendError(res, "INVALID_INPUT", "شناسه‌های محصول و درصد تغییر قیمت معتبر نیست", 400);
+      const { type, value, percentageChange, productIds, categoryId, roundToNearest } = req.body;
+      const delta = value !== undefined ? value : percentageChange;
+
+      if (typeof delta !== "number") {
+        return sendError(res, "INVALID_INPUT", "مقدار تغییر قیمت نامعتبر است", 400);
       }
-      const affected = await productService.bulkUpdatePrices(productIds, percentageChange, req.user?.id);
-      return sendSuccess(res, { affectedCount: affected, percentageChange }, 200);
+
+      const result = await productService.bulkUpdatePrices(
+        {
+          type: type || "PERCENTAGE",
+          value: delta,
+          percentageChange: delta,
+          productIds,
+          categoryId,
+          roundToNearest: roundToNearest || 1000,
+        },
+        req.user?.id
+      );
+
+      return sendSuccess(
+        res,
+        {
+          affectedCount: result.affectedCount,
+          updatedProducts: result.updatedProducts,
+          type: type || "PERCENTAGE",
+          value: delta,
+        },
+        200
+      );
     } catch (err: any) {
       next(err);
     }
@@ -81,6 +121,41 @@ export class ProductController {
       const success = await productService.deleteProduct(id, req.user?.id);
       if (!success) {
         return sendError(res, "PRODUCT_NOT_FOUND", "محصول برای حذف یافت نشد", 404);
+      }
+      return sendSuccess(res, { deleted: true }, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async createCategory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const cat = await productService.createCategory(req.body, req.user?.id);
+      return sendSuccess(res, cat, 201);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async updateCategory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const updated = await productService.updateCategory(id, req.body, req.user?.id);
+      if (!updated) {
+        return sendError(res, "CATEGORY_NOT_FOUND", "دسته‌بندی مورد نظر یافت نشد", 404);
+      }
+      return sendSuccess(res, updated, 200);
+    } catch (err: any) {
+      next(err);
+    }
+  }
+
+  async deleteCategory(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const result = await productService.deleteCategory(id, req.user?.id);
+      if (!result.success) {
+        return sendError(res, "CATEGORY_DELETE_FAILED", result.error || "خطا در حذف دسته‌بندی", 400);
       }
       return sendSuccess(res, { deleted: true }, 200);
     } catch (err: any) {

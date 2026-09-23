@@ -9,10 +9,10 @@ import { CategoriesManagementView } from "./views/CategoriesManagementView";
 import { PriceManagementView } from "./views/PriceManagementView";
 import { DiscountsManagementView } from "./views/DiscountsManagementView";
 import { CampaignsManagementView } from "./views/CampaignsManagementView";
-import { QuotationsManagementView } from "./views/QuotationsManagementView";
 import { ContactsManagementView } from "./views/ContactsManagementView";
-import { OrdersManagementView } from "./views/OrdersManagementView";
 import { ContentManagementView } from "./views/ContentManagementView";
+import { BlogManagementView } from "./views/BlogManagementView";
+import { MediaLibraryView } from "./views/MediaLibraryView";
 import { UsersManagementView } from "./views/UsersManagementView";
 import { RolesPermissionsView } from "./views/RolesPermissionsView";
 import { ReportsManagementView } from "./views/ReportsManagementView";
@@ -48,17 +48,17 @@ export const AdminRoot: React.FC = () => {
     return <AdminLoginView />;
   }
 
-  // If path is specifically /admin/login while logged in, render Dashboard
+  // Route sub-views
   const renderCurrentView = () => {
     if (path.startsWith("/admin/products")) return <ProductsManagementView />;
     if (path.startsWith("/admin/categories")) return <CategoriesManagementView />;
     if (path.startsWith("/admin/prices")) return <PriceManagementView />;
     if (path.startsWith("/admin/discounts")) return <DiscountsManagementView />;
     if (path.startsWith("/admin/campaigns")) return <CampaignsManagementView />;
-    if (path.startsWith("/admin/quotations")) return <QuotationsManagementView />;
     if (path.startsWith("/admin/contacts")) return <ContactsManagementView />;
-    if (path.startsWith("/admin/orders")) return <OrdersManagementView />;
     if (path.startsWith("/admin/content")) return <ContentManagementView />;
+    if (path.startsWith("/admin/blog")) return <BlogManagementView />;
+    if (path.startsWith("/admin/media")) return <MediaLibraryView />;
     if (path.startsWith("/admin/users")) return <UsersManagementView />;
     if (path.startsWith("/admin/roles")) return <RolesPermissionsView />;
     if (path.startsWith("/admin/reports")) return <ReportsManagementView />;

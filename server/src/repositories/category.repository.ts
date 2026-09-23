@@ -155,6 +155,104 @@ export class CategoryRepository {
     inMemoryCategories.push(newCat);
     return newCat;
   }
+
+  async update(id: string, data: any): Promise<CategoryDTO | null> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.slug !== undefined) updateData.slug = data.slug;
+        if (data.description !== undefined) updateData.description = data.description;
+        if (data.image !== undefined) updateData.image = data.image;
+        if (data.parentId !== undefined) updateData.parentId = data.parentId;
+        if (data.sortOrder !== undefined) updateData.sortOrder = Number(data.sortOrder);
+        if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+        const updated = await prisma.category.update({
+          where: { id },
+          data: updateData,
+        });
+
+        return {
+          id: updated.id,
+          name: updated.name,
+          slug: updated.slug,
+          description: updated.description,
+          image: updated.image,
+          parentId: updated.parentId,
+          sortOrder: updated.sortOrder,
+          isActive: updated.isActive,
+          createdAt: updated.createdAt.toISOString(),
+          updatedAt: updated.updatedAt.toISOString(),
+        };
+      } catch (err) {
+        // Fallback
+      }
+    }
+
+    const idx = inMemoryCategories.findIndex((c) => c.id === id);
+    if (idx === -1) return null;
+    const existing = inMemoryCategories[idx];
+    const updated: CategoryDTO = {
+      ...existing,
+      ...data,
+      sortOrder: data.sortOrder !== undefined ? Number(data.sortOrder) : existing.sortOrder,
+      updatedAt: new Date().toISOString(),
+    };
+    inMemoryCategories[idx] = updated;
+    return updated;
+  }
+
+  async countProducts(id: string): Promise<number> {
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        return await prisma.product.count({
+          where: {
+            categoryId: id,
+            deletedAt: null,
+          },
+        });
+      } catch {
+        // Fallback
+      }
+    }
+
+    const { productRepository } = await import("./product.repository");
+    const prods = await productRepository.findAll();
+    return prods.filter((p) => p.categoryId === id).length;
+  }
+
+  async delete(id: string): Promise<{ success: boolean; error?: string }> {
+    const productCount = await this.countProducts(id);
+    if (productCount > 0) {
+      return {
+        success: false,
+        error: `امکان حذف این دسته‌بندی وجود ندارد زیرا دارای ${productCount} محصول فعال است. ابتدا محصولات را به دسته دیگری انتقال داده یا حذف کنید.`,
+      };
+    }
+
+    if (isDatabaseConnected()) {
+      try {
+        const prisma = getPrismaClient();
+        await prisma.category.update({
+          where: { id },
+          data: { deletedAt: new Date(), isActive: false },
+        });
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message || "خطا در حذف دسته‌بندی از پایگاه داده" };
+      }
+    }
+
+    const idx = inMemoryCategories.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      inMemoryCategories.splice(idx, 1);
+      return { success: true };
+    }
+    return { success: false, error: "دسته‌بندی یافت نشد." };
+  }
 }
 
 export const categoryRepository = new CategoryRepository();
