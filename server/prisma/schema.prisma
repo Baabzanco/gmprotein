@@ -12,22 +12,24 @@ generator client {
 // -------------------------------------------------------------
 
 model User {
-  id           String     @id @default(cuid())
+  id           String    @id @default(cuid())
   firstName    String
   lastName     String
-  email        String     @unique
+  email        String    @unique
   phone        String?
   passwordHash String
-  isActive     Boolean    @default(true)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  userRoles    UserRole[]
-  auditLogs    AuditLog[]
-  blogPosts    BlogPost[]
-  followedUpQuotations QuotationRequest[] @relation("QuotationFollowup")
+  userRoles               UserRole[]
+  auditLogs               AuditLog[]
+  blogPosts               BlogPost[]
+  followedUpQuotations    QuotationRequest[]       @relation("QuotationFollowup")
+  uploadedMedia           Media[]
+  landingSectionRevisions LandingSectionRevision[]
 
   @@index([email])
   @@index([phone])
@@ -35,23 +37,23 @@ model User {
 }
 
 model Role {
-  id              String           @id @default(cuid())
-  name            String           @unique
-  description     String?
-  isSystem        Boolean          @default(false)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   userRoles       UserRole[]
   rolePermissions RolePermission[]
 }
 
 model Permission {
-  id              String           @id @default(cuid())
-  action          String           // CREATE, READ, UPDATE, DELETE, MANAGE
-  resource        String           // products, users, categories, orders, settings, etc.
-  description     String?
-  createdAt       DateTime         @default(now())
+  id          String   @id @default(cuid())
+  action      String // CREATE, READ, UPDATE, DELETE, MANAGE
+  resource    String // products, users, categories, orders, settings, etc.
+  description String?
+  createdAt   DateTime @default(now())
 
   rolePermissions RolePermission[]
 
@@ -85,21 +87,21 @@ model RolePermission {
 // -------------------------------------------------------------
 
 model Category {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
-  slug        String     @unique
+  slug        String    @unique
   description String?
   image       String?
   parentId    String?
-  sortOrder   Int        @default(0)
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryHierarchy")
-  products    Product[]
+  parent             Category?          @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children           Category[]         @relation("CategoryHierarchy")
+  products           Product[]
   discountCategories DiscountCategory[]
 
   @@index([slug])
@@ -107,33 +109,33 @@ model Category {
 }
 
 model Product {
-  id               String            @id @default(cuid())
+  id               String    @id @default(cuid())
   name             String
-  slug             String            @unique
+  slug             String    @unique
   shortDescription String?
   description      String
-  sku              String            @unique
+  sku              String    @unique
   categoryId       String
-  basePrice        Decimal           @db.Decimal(14, 2)
-  unit             String            @default("kg")
-  minimumOrder     Decimal           @default(1.0) @db.Decimal(10, 2)
-  isAvailable      Boolean           @default(true)
-  isFeatured       Boolean           @default(false)
+  basePrice        Decimal   @db.Decimal(14, 2)
+  unit             String    @default("kg")
+  minimumOrder     Decimal   @default(1.0) @db.Decimal(10, 2)
+  isAvailable      Boolean   @default(true)
+  isFeatured       Boolean   @default(false)
   seoTitle         String?
   seoDescription   String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  category         Category          @relation(fields: [categoryId], references: [id])
-  allowCustomWeight Boolean          @default(true)
-  packageOptions   ProductPackageOption[]
-  features         ProductFeature[]
-  images           ProductImage[]
-  prices           ProductPrice[]
-  discountProducts DiscountProduct[]
-  campaignProducts CampaignProduct[]
-  quotationItems   QuotationItem[]
+  category          Category               @relation(fields: [categoryId], references: [id])
+  allowCustomWeight Boolean                @default(true)
+  packageOptions    ProductPackageOption[]
+  features          ProductFeature[]
+  images            ProductImage[]
+  prices            ProductPrice[]
+  discountProducts  DiscountProduct[]
+  campaignProducts  CampaignProduct[]
+  quotationItems    QuotationItem[]
 
   @@index([slug])
   @@index([sku])
@@ -151,7 +153,7 @@ model ProductFeature {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
   @@index([sortOrder])
@@ -178,14 +180,17 @@ model ProductImage {
   id        String   @id @default(cuid())
   productId String
   url       String
+  mediaId   String?
   alt       String?
   sortOrder Int      @default(0)
   isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  media   Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 
   @@index([productId])
+  @@index([mediaId])
 }
 
 model ProductPrice {
@@ -209,16 +214,16 @@ model ProductPrice {
 // -------------------------------------------------------------
 
 model Discount {
-  id          String             @id @default(cuid())
-  code        String?            @unique
-  name        String
-  type        String             // PERCENTAGE, FIXED_AMOUNT
-  value       Decimal            @db.Decimal(14, 2)
-  startAt     DateTime?
-  endAt       DateTime?
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id        String    @id @default(cuid())
+  code      String?   @unique
+  name      String
+  type      String // PERCENTAGE, FIXED_AMOUNT
+  value     Decimal   @db.Decimal(14, 2)
+  startAt   DateTime?
+  endAt     DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   discountProducts   DiscountProduct[]
   discountCategories DiscountCategory[]
@@ -228,7 +233,7 @@ model Discount {
 }
 
 model DiscountProduct {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   discountId String
   productId  String
 
@@ -239,7 +244,7 @@ model DiscountProduct {
 }
 
 model DiscountCategory {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   discountId String
   categoryId String
 
@@ -250,36 +255,39 @@ model DiscountCategory {
 }
 
 model Campaign {
-  id                String            @id @default(cuid())
+  id                String    @id @default(cuid())
   title             String
-  slug              String            @unique
+  slug              String    @unique
   description       String
   shortDescription  String?
   image             String
+  mediaId           String?
   badge             String
   ctaLabel          String?
   ctaLink           String?
   highlightDiscount String?
   startAt           DateTime?
   endAt             DateTime?
-  isActive          Boolean           @default(true)
-  sortOrder         Int               @default(0)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  isActive          Boolean   @default(true)
+  sortOrder         Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
   campaignProducts CampaignProduct[]
+  media            Media?            @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 
   @@index([slug])
   @@index([isActive])
+  @@index([mediaId])
 }
 
 model CampaignProduct {
-  id               String   @id @default(cuid())
-  campaignId       String
-  productId        String
+  id                String  @id @default(cuid())
+  campaignId        String
+  productId         String
   highlightDiscount String?
-  sortOrder        Int      @default(0)
+  sortOrder         Int     @default(0)
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -292,22 +300,22 @@ model CampaignProduct {
 // -------------------------------------------------------------
 
 model QuotationRequest {
-  id             String          @id @default(cuid())
+  id             String    @id @default(cuid())
   customerName   String
   companyName    String?
   phone          String
   email          String?
   notes          String?
-  status         String          @default("PENDING") // PENDING, REVIEWING, QUOTED, ACCEPTED, REJECTED, CANCELLED
-  followupStatus String          @default("NEEDS_FOLLOW_UP") // NEEDS_FOLLOW_UP, FOLLOWED_UP
+  status         String    @default("PENDING") // PENDING, REVIEWING, QUOTED, ACCEPTED, REJECTED, CANCELLED
+  followupStatus String    @default("NEEDS_FOLLOW_UP") // NEEDS_FOLLOW_UP, FOLLOWED_UP
   followedUpAt   DateTime?
   followedUpById String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  items          QuotationItem[]
-  followedUpBy   User?           @relation("QuotationFollowup", fields: [followedUpById], references: [id])
+  items        QuotationItem[]
+  followedUpBy User?           @relation("QuotationFollowup", fields: [followedUpById], references: [id])
 
   @@index([phone])
   @@index([status])
@@ -316,12 +324,12 @@ model QuotationRequest {
 }
 
 model QuotationItem {
-  id                 String           @id @default(cuid())
+  id                 String  @id @default(cuid())
   quotationRequestId String
   productId          String
-  requestedWeight    Decimal          @db.Decimal(10, 2)
-  quantity           Int              @default(1)
-  unit               String           @default("kg")
+  requestedWeight    Decimal @db.Decimal(10, 2)
+  quantity           Int     @default(1)
+  unit               String  @default("kg")
   notes              String?
 
   quotationRequest QuotationRequest @relation(fields: [quotationRequestId], references: [id], onDelete: Cascade)
@@ -408,18 +416,52 @@ model CooperationStep {
 }
 
 model LandingSection {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  title       String?
-  subtitle    String?
-  badge       String?
-  contentJson Json?
-  sortOrder   Int      @default(0)
-  isPublished Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  key          String    @unique
+  type         String    @default("CUSTOM")
+  status       String    @default("PUBLISHED")
+  version      Int       @default(1)
+  title        String?
+  subtitle     String?
+  badge        String?
+  contentJson  Json?
+  settingsJson Json?
+  sortOrder    Int       @default(0)
+  isPublished  Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  revisions LandingSectionRevision[]
 
   @@index([key])
+  @@index([type])
+  @@index([status])
+  @@index([sortOrder])
+  @@index([deletedAt])
+}
+
+model LandingSectionRevision {
+  id           String   @id @default(cuid())
+  sectionId    String
+  version      Int
+  status       String
+  title        String?
+  subtitle     String?
+  badge        String?
+  contentJson  Json?
+  settingsJson Json?
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  section   LandingSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sectionId, version])
+  @@index([sectionId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([createdById])
 }
 
 // -------------------------------------------------------------
@@ -427,37 +469,41 @@ model LandingSection {
 // -------------------------------------------------------------
 
 model NavigationMenu {
-  id        String           @id @default(cuid())
-  code      String           @unique
+  id        String   @id @default(cuid())
+  code      String   @unique
   name      String
-  location  String           @default("HEADER") // HEADER, FOOTER, MOBILE, SIDEBAR
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  location  String   @default("HEADER") // HEADER, FOOTER, MOBILE, SIDEBAR
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  items     NavigationItem[]
+  items NavigationItem[]
 
   @@index([code])
 }
 
 model NavigationItem {
-  id        String           @id @default(cuid())
-  menuId    String
-  label     String
-  url       String
-  parentId  String?
-  sortOrder Int              @default(0)
-  isVisible Boolean          @default(true)
-  target    String           @default("_self")
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id              String   @id @default(cuid())
+  menuId          String
+  label           String
+  url             String
+  destinationType String   @default("INTERNAL_PAGE")
+  referenceId     String?
+  externalUrl     String?
+  parentId        String?
+  sortOrder       Int      @default(0)
+  isVisible       Boolean  @default(true)
+  target          String   @default("_self")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  menu      NavigationMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  parent    NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id])
-  children  NavigationItem[] @relation("NavHierarchy")
+  menu     NavigationMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent   NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id])
+  children NavigationItem[] @relation("NavHierarchy")
 
   @@index([menuId])
   @@index([parentId])
+  @@index([destinationType])
 }
 
 model SiteSetting {
@@ -478,44 +524,50 @@ model SiteSetting {
 // -------------------------------------------------------------
 
 model BlogPost {
-  id             String             @id @default(cuid())
-  title          String
-  slug           String             @unique
-  excerpt        String?
-  content        String
-  featuredImage  String?
-  status         String             @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
-  authorId       String?
-  publishedAt    DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  seoTitle       String?
-  seoDescription String?
-  seoKeywords    String?
-  canonicalUrl   String?
-  ogTitle        String?
-  ogDescription  String?
-  ogImage        String?
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  excerpt         String?
+  content         String
+  featuredImage   String?
+  featuredMediaId String?
+  status          String    @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  authorId        String?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  seoTitle        String?
+  seoDescription  String?
+  seoKeywords     String?
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImage         String?
+  ogMediaId       String?
 
-  author         User?              @relation(fields: [authorId], references: [id])
-  categories     BlogPostCategory[]
-  tags           BlogPostTag[]
+  author        User?              @relation(fields: [authorId], references: [id])
+  featuredMedia Media?             @relation("BlogFeaturedMedia", fields: [featuredMediaId], references: [id], onDelete: SetNull)
+  ogMedia       Media?             @relation("BlogOgMedia", fields: [ogMediaId], references: [id], onDelete: SetNull)
+  categories    BlogPostCategory[]
+  tags          BlogPostTag[]
 
   @@index([slug])
   @@index([status])
   @@index([publishedAt])
+  @@index([featuredMediaId])
+  @@index([ogMediaId])
 }
 
 model BlogCategory {
-  id          String             @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
-  slug        String             @unique
+  slug        String   @unique
   description String?
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  posts       BlogPostCategory[]
+  posts BlogPostCategory[]
 
   @@index([slug])
 }
@@ -531,13 +583,13 @@ model BlogPostCategory {
 }
 
 model BlogTag {
-  id        String        @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  slug      String        @unique
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  posts     BlogPostTag[]
+  posts BlogPostTag[]
 
   @@index([slug])
 }
@@ -546,8 +598,8 @@ model BlogPostTag {
   postId String
   tagId  String
 
-  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
 }
@@ -559,15 +611,15 @@ model BlogPostTag {
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
-  action    String   // PRODUCT_CREATED, LOGIN_SUCCESS, etc.
-  entity    String   // Product, User, QuotationRequest, etc.
+  action    String // PRODUCT_CREATED, LOGIN_SUCCESS, etc.
+  entity    String // Product, User, QuotationRequest, etc.
   entityId  String?
   metadata  Json?
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
 
-  user      User?    @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([action])
@@ -580,24 +632,33 @@ model AuditLog {
 // -------------------------------------------------------------
 
 model Media {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   filename     String
   originalName String
   mimeType     String
   extension    String
   size         Int
   url          String
-  mediaType    String   // IMAGE, VIDEO, DOCUMENT, OTHER
+  mediaType    String // IMAGE, VIDEO, DOCUMENT, OTHER
   width        Int?
   height       Int?
-  duration     Decimal? @db.Decimal(10, 2)
+  duration     Decimal?  @db.Decimal(10, 2)
   alt          String?
   caption      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  uploadedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  uploadedBy    User?          @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  productImages ProductImage[]
+  campaigns     Campaign[]
+  featuredBlogs BlogPost[]     @relation("BlogFeaturedMedia")
+  ogBlogs       BlogPost[]     @relation("BlogOgMedia")
 
   @@index([mediaType])
   @@index([mimeType])
   @@index([createdAt])
+  @@index([deletedAt])
+  @@index([uploadedById])
 }
-

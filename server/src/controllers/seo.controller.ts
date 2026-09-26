@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { blogRepository } from "../repositories/blog.repository";
+import { productRepository } from "../repositories/product.repository";
+import { categoryRepository } from "../repositories/category.repository";
 
 export class SeoController {
   async getSitemap(req: Request, res: Response) {
@@ -8,15 +10,36 @@ export class SeoController {
 
       // Fetch all published posts
       const publishedResult = await blogRepository.findAllPublished({ page: 1, limit: 1000 });
-      const categories = await blogRepository.findAllCategories();
+      const blogCategories = await blogRepository.findAllCategories();
+      const products = await productRepository.findAll();
+      const productCategories = await categoryRepository.findAll();
 
       const staticUrls = [
         { loc: `${baseUrl}/`, priority: "1.0", changefreq: "weekly" },
+        { loc: `${baseUrl}/store`, priority: "0.9", changefreq: "daily" },
         { loc: `${baseUrl}/blog`, priority: "0.8", changefreq: "daily" },
         { loc: `${baseUrl}/#store-section`, priority: "0.8", changefreq: "weekly" },
         { loc: `${baseUrl}/#about-section`, priority: "0.6", changefreq: "monthly" },
         { loc: `${baseUrl}/#contact-section`, priority: "0.6", changefreq: "monthly" },
       ];
+
+      const productUrls = products
+        .filter((p) => p.isAvailable)
+        .map((p) => ({
+          loc: `${baseUrl}/store/product/${p.slug || p.id}`,
+          lastmod: (p.updatedAt || new Date().toISOString()).split("T")[0],
+          changefreq: "weekly",
+          priority: "0.8",
+        }));
+
+      const productCategoryUrls = productCategories
+        .filter((c) => c.isActive)
+        .map((c) => ({
+          loc: `${baseUrl}/store?category=${encodeURIComponent(c.slug || c.id)}`,
+          lastmod: (c.updatedAt || new Date().toISOString()).split("T")[0],
+          changefreq: "weekly",
+          priority: "0.7",
+        }));
 
       const postUrls = publishedResult.posts.map((p) => ({
         loc: `${baseUrl}/blog/${p.slug}`,
@@ -25,7 +48,7 @@ export class SeoController {
         priority: "0.7",
       }));
 
-      const categoryUrls = categories
+      const blogCategoryUrls = blogCategories
         .filter((c) => c.isActive)
         .map((c) => ({
           loc: `${baseUrl}/blog?category=${encodeURIComponent(c.slug)}`,
@@ -34,7 +57,7 @@ export class SeoController {
           priority: "0.5",
         }));
 
-      const allUrls = [...staticUrls, ...postUrls, ...categoryUrls];
+      const allUrls = [...staticUrls, ...productUrls, ...productCategoryUrls, ...postUrls, ...blogCategoryUrls];
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
