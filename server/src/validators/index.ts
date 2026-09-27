@@ -186,6 +186,13 @@ export const SYSTEM_PERMISSIONS: SystemPermissionDefinition[] = [
   { code: "landing.view", action: "view", resource: "landing", category: "صفحه فرود (CMS)", description: "مشاهده محتوای صفحه فرود" },
   { code: "landing.update", action: "update", resource: "landing", category: "صفحه فرود (CMS)", description: "ویرایش اجزای صفحه فرود و بنرها" },
 
+  // Landing Sections CMS (Phase 6)
+  { code: "landing_sections.view", action: "view", resource: "landing_sections", category: "مدیریت لندینگ (CMS)", description: "مشاهده سکشن‌های صفحه فرود و تاریخچه نسخه‌ها" },
+  { code: "landing_sections.create", action: "create", resource: "landing_sections", category: "مدیریت لندینگ (CMS)", description: "ایجاد سکشن جدید صفحه فرود" },
+  { code: "landing_sections.update", action: "update", resource: "landing_sections", category: "مدیریت لندینگ (CMS)", description: "ویرایش، انتشار و مرتب‌سازی سکشن‌های لندینگ" },
+  { code: "landing_sections.delete", action: "delete", resource: "landing_sections", category: "مدیریت لندینگ (CMS)", description: "حذف و بازیابی سکشن‌های لندینگ" },
+  { code: "landing_sections.manage", action: "manage", resource: "landing_sections", category: "مدیریت لندینگ (CMS)", description: "مدیریت جامع سکشن‌های لندینگ" },
+
   // Blog
   { code: "blog.view", action: "view", resource: "blog", category: "وبلاگ و مقالات", description: "مشاهده مقالات و دسته‌بندی‌های بلاگ" },
   { code: "blog.create", action: "create", resource: "blog", category: "وبلاگ و مقالات", description: "نگارش و انتشار مقاله جدید" },
@@ -355,5 +362,79 @@ export const blogPostQuerySchema = z.object({
     .refine((val) => !isNaN(val) && val > 0 && val <= 100, "تعداد در صفحه باید بین ۱ تا ۱۰۰ باشد")
     .optional()
     .default(10 as any),
+});
+
+// -------------------------------------------------------------
+// Landing Section CMS Validators (Phase 6)
+// -------------------------------------------------------------
+
+export const landingSectionTypeSchema = z
+  .string()
+  .min(2, "نوع سکشن باید حداقل ۲ کاراکتر باشد")
+  .max(50, "نوع سکشن نمی‌تواند بیش از ۵۰ کاراکتر باشد")
+  .regex(/^[a-zA-Z0-9_-]+$/, "نوع سکشن تنها می‌تواند شامل حروف انگلیسی، عدد، خط فاصله و خط زیر باشد");
+
+export const landingSectionStatusSchema = z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]);
+
+export const createLandingSectionSchema = z.object({
+  key: z
+    .string()
+    .min(2, "کلید یکتای سکشن باید حداقل ۲ کاراکتر باشد")
+    .max(100, "کلید یکتا نمی‌تواند بیش از ۱۰۰ کاراکتر باشد")
+    .regex(/^[a-zA-Z0-9_-]+$/, "کلید سکشن تنها می‌تواند شامل حروف انگلیسی، عدد، خط فاصله و خط زیر باشد"),
+  type: landingSectionTypeSchema.default("CUSTOM"),
+  status: landingSectionStatusSchema.default("DRAFT"),
+  title: z.string().max(255, "عنوان نمی‌تواند بیش از ۲۵۵ کاراکتر باشد").optional().nullable(),
+  subtitle: z.string().max(500, "زیرعنوان نمی‌تواند بیش از ۵۰۰ کاراکتر باشد").optional().nullable(),
+  badge: z.string().max(100, "نشان نمی‌تواند بیش از ۱۰۰ کاراکتر باشد").optional().nullable(),
+  contentJson: z.any().optional().nullable(),
+  settingsJson: z.any().optional().nullable(),
+  sortOrder: z.number().int("ترتیب باید عدد صحیح باشد").default(0),
+  isPublished: z.boolean().default(false),
+});
+
+export const updateLandingSectionSchema = z.object({
+  key: z
+    .string()
+    .min(2, "کلید یکتای سکشن باید حداقل ۲ کاراکتر باشد")
+    .max(100, "کلید یکتا نمی‌تواند بیش از ۱۰۰ کاراکتر باشد")
+    .regex(/^[a-zA-Z0-9_-]+$/, "کلید سکشن تنها می‌تواند شامل حروف انگلیسی، عدد، خط فاصله و خط زیر باشد")
+    .optional(),
+  type: landingSectionTypeSchema.optional(),
+  status: landingSectionStatusSchema.optional(),
+  title: z.string().max(255, "عنوان نمی‌تواند بیش از ۲۵۵ کاراکتر باشد").optional().nullable(),
+  subtitle: z.string().max(500, "زیرعنوان نمی‌تواند بیش از ۵۰۰ کاراکتر باشد").optional().nullable(),
+  badge: z.string().max(100, "نشان نمی‌تواند بیش از ۱۰۰ کاراکتر باشد").optional().nullable(),
+  contentJson: z.any().optional().nullable(),
+  settingsJson: z.any().optional().nullable(),
+  sortOrder: z.number().int("ترتیب باید عدد صحیح باشد").optional(),
+  isPublished: z.boolean().optional(),
+});
+
+export const reorderLandingSectionsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().min(1, "شناسه سکشن الزامی است"),
+        sortOrder: z.number().int("ترتیب باید عدد صحیح باشد"),
+      })
+    )
+    .min(1, "حداقل یک سکشن برای مرتب‌سازی الزامی است")
+    .refine(
+      (items) => {
+        const ids = items.map((item) => item.id);
+        return new Set(ids).size === ids.length;
+      },
+      { message: "شناسه‌های ارسالی برای مرتب‌سازی باید یکتا باشند" }
+    ),
+});
+
+export const duplicateLandingSectionSchema = z.object({
+  newKey: z
+    .string()
+    .min(2, "کلید یکتای جدید حداقل ۲ کاراکتر الزامی است")
+    .max(100, "کلید یکتا نمی‌تواند بیش از ۱۰۰ کاراکتر باشد")
+    .regex(/^[a-zA-Z0-9_-]+$/, "کلید جدید تنها می‌تواند شامل حروف انگلیسی، عدد، خط فاصله و خط زیر باشد"),
+  title: z.string().max(255, "عنوان نمی‌تواند بیش از ۲۵۵ کاراکتر باشد").optional().nullable(),
 });
 

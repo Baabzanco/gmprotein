@@ -12,6 +12,7 @@ import {
   updateRolePermissionsSchema,
 } from "../../validators";
 import adminBlogRoutes from "./admin.blog.routes";
+import adminLandingSectionRoutes from "./admin.landingSection.routes";
 
 const router = Router();
 
@@ -20,6 +21,9 @@ router.use(requireAuth);
 
 // Blog Management Sub-router (Phase 4)
 router.use("/blog", adminBlogRoutes);
+
+// Landing Sections CMS Sub-router (Phase 6)
+router.use("/landing-sections", adminLandingSectionRoutes);
 
 // 1. Dashboard & Logs
 router.get("/dashboard-stats", (req, res, next) => {

@@ -1,7 +1,24 @@
 import { Router } from "express";
 import { landingController } from "../../controllers/landing.controller";
+import { landingSectionController } from "../../controllers/landingSection.controller";
 
 const router = Router();
+
+// -------------------------------------------------------------
+// New Landing Section CMS Endpoints (Phase 6)
+// -------------------------------------------------------------
+
+router.get("/sections", (req, res, next) => {
+  landingSectionController.publicGetSections(req, res, next);
+});
+
+router.get("/sections/:key", (req, res, next) => {
+  landingSectionController.publicGetSectionByKey(req, res, next);
+});
+
+// -------------------------------------------------------------
+// Legacy Landing Endpoints (Preserved for compatibility)
+// -------------------------------------------------------------
 
 router.get("/all", (req, res, next) => {
   landingController.getAll(req, res, next);

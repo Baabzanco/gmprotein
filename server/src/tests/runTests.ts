@@ -345,6 +345,190 @@ async function runAllTests() {
   const deletedRoleCheck = await roleRepository.findById(customRole.id);
   assert(deletedRoleCheck === null, "Custom role safely cleaned up");
 
+  // --- Suite 9: Landing Section CMS, Revisions, Ordering, RBAC & Error Propagation (Phase 6) ---
+  console.log("\nSuite 9: Landing Section CMS, Revisions, Ordering, RBAC & Error Propagation");
+  const {
+    createLandingSectionSchema,
+    updateLandingSectionSchema,
+    reorderLandingSectionsSchema,
+    duplicateLandingSectionSchema,
+  } = await import("../validators");
+  const { landingSectionService } = await import("../services/landingSection.service");
+  const { landingSectionRepository } = await import("../repositories/landingSection.repository");
+
+  // 1. Validation Failures
+  const invalidKeySection = createLandingSectionSchema.safeParse({
+    key: "Invalid Key with Spaces!",
+    type: "HERO",
+    title: "تیتر نامعتبر",
+  });
+  assert(invalidKeySection.success === false, "Validation failure on invalid key format (spaces and special characters)");
+
+  const invalidTypeSection = createLandingSectionSchema.safeParse({
+    key: "valid-key",
+    type: "H", // Too short
+  });
+  assert(invalidTypeSection.success === false, "Validation failure on type length less than 2 chars");
+
+  const invalidReorderDuplicateIds = reorderLandingSectionsSchema.safeParse({
+    items: [
+      { id: "sec-1", sortOrder: 1 },
+      { id: "sec-1", sortOrder: 2 },
+    ],
+  });
+  assert(invalidReorderDuplicateIds.success === false, "Validation failure on duplicate IDs in reorder payload");
+
+  const invalidDuplicateKey = duplicateLandingSectionSchema.safeParse({
+    newKey: "invalid duplicate key!",
+  });
+  assert(invalidDuplicateKey.success === false, "Validation failure on duplicate newKey format");
+
+  // 2. Create Section
+  const testKey = `hero-showcase-${Date.now()}`;
+  const createdSection = await landingSectionService.createSection(
+    {
+      key: testKey,
+      type: "HERO",
+      status: "DRAFT",
+      title: "پروتئین ممتاز گلمحمدی",
+      subtitle: "تأمین مستقیم استیک و کات‌های لوکس رستورانی",
+      badge: "تخصصی و باکیفیت",
+      contentJson: { heroVideoUrl: "/uploads/videos/hero.mp4", primaryCta: "مشاهده کاتالوگ" },
+      settingsJson: { darkTheme: true, autoplay: true },
+      sortOrder: 1,
+      isPublished: false,
+    },
+    "test-admin-user"
+  );
+  assert(createdSection.id !== undefined && createdSection.key === testKey, "Landing section created successfully");
+  assert(createdSection.version === 1, "New landing section starts at version 1");
+  assert(createdSection.isPublished === false && createdSection.status === "DRAFT", "New section defaults to draft unpublished status");
+
+  // 3. Initial Revision Creation Check
+  const initialRevisions = await landingSectionService.getSectionRevisions(createdSection.id);
+  assert(initialRevisions.length === 1, "Initial revision created automatically on section creation");
+  assert(initialRevisions[0].version === 1, "Initial revision version is 1");
+  assert(initialRevisions[0].title === "پروتئین ممتاز گلمحمدی", "Revision snapshot preserves initial title");
+
+  // 4. Update Section & Version Increment
+  const updatedSection = await landingSectionService.updateSection(
+    createdSection.id,
+    {
+      title: "پروتئین ممتاز گلمحمدی (ویرایش‌شده)",
+      subtitle: "زنجیره سرد استاندارد و تحویل فوری",
+      contentJson: { heroVideoUrl: "/uploads/videos/hero_v2.mp4", primaryCta: "ثبت سفارش عمده" },
+    },
+    "test-admin-user"
+  );
+  assert(updatedSection.version === 2, "Section version incremented to 2 on content update");
+  assert(updatedSection.title === "پروتئین ممتاز گلمحمدی (ویرایش‌شده)", "Section content updated accurately");
+
+  // 5. Revision Accumulation Check
+  const afterUpdateRevisions = await landingSectionService.getSectionRevisions(createdSection.id);
+  assert(afterUpdateRevisions.length === 2, "Second revision successfully recorded without destroying history");
+  assert(afterUpdateRevisions[0].version === 2 && afterUpdateRevisions[1].version === 1, "Revisions returned in descending version order");
+
+  // 6. Specific Version Retrieval
+  const rev1 = await landingSectionService.getRevisionByVersion(createdSection.id, 1);
+  assert(rev1 !== null && rev1.title === "پروتئین ممتاز گلمحمدی", "Historical version 1 retrieved accurately");
+  const rev2 = await landingSectionService.getRevisionByVersion(createdSection.id, 2);
+  assert(rev2 !== null && rev2.title === "پروتئین ممتاز گلمحمدی (ویرایش‌شده)", "Version 2 retrieved accurately");
+
+  // 7. Public Endpoint Hides Unpublished Sections
+  const publicListBeforePublish = await landingSectionService.getPublicSections();
+  const foundInPublicBefore = publicListBeforePublish.find((s) => s.id === createdSection.id);
+  assert(foundInPublicBefore === undefined, "Public endpoint hides unpublished draft sections");
+  const publicSingleBefore = await landingSectionService.getPublicSectionByKey(testKey);
+  assert(publicSingleBefore === null, "Public query by key returns null for draft sections");
+
+  // 8. Publish Section
+  const publishedSection = await landingSectionService.publishSection(createdSection.id, "test-admin-user");
+  assert(publishedSection.isPublished === true && publishedSection.status === "PUBLISHED", "Section successfully published");
+
+  // 9. Public Endpoint Returns Published Section with Normalized Shape
+  const publicListAfterPublish = await landingSectionService.getPublicSections();
+  const foundInPublicAfter = publicListAfterPublish.find((s) => s.id === createdSection.id);
+  assert(foundInPublicAfter !== undefined, "Published section appears in public endpoint query");
+  assert(foundInPublicAfter?.content?.heroVideoUrl === "/uploads/videos/hero_v2.mp4", "Public DTO normalizes contentJson to content");
+  assert(foundInPublicAfter?.settings?.darkTheme === true, "Public DTO normalizes settingsJson to settings");
+
+  // 10. Unpublish Section
+  const unpublishedSection = await landingSectionService.unpublishSection(createdSection.id, "test-admin-user");
+  assert(unpublishedSection.isPublished === false && unpublishedSection.status === "DRAFT", "Section successfully unpublished");
+  const publicAfterUnpublish = await landingSectionService.getPublicSectionByKey(testKey);
+  assert(publicAfterUnpublish === null, "Public endpoint hides section after unpublishing");
+
+  // 11. Duplicate Section
+  const duplicateKey = `hero-copy-${Date.now()}`;
+  const duplicatedSection = await landingSectionService.duplicateSection(
+    createdSection.id,
+    duplicateKey,
+    "نسخه تکثیر شده هیرو",
+    "test-admin-user"
+  );
+  assert(duplicatedSection.id !== createdSection.id, "Duplicated section has unique new ID");
+  assert(duplicatedSection.key === duplicateKey, "Duplicated section has assigned new key");
+  assert(duplicatedSection.version === 1, "Duplicated section starts at version 1");
+  assert(duplicatedSection.isPublished === false, "Duplicated section starts as unpublished draft");
+  assert(duplicatedSection.title === "نسخه تکثیر شده هیرو", "Title override applied to duplicate");
+
+  const duplicateRevisions = await landingSectionService.getSectionRevisions(duplicatedSection.id);
+  assert(duplicateRevisions.length === 1 && duplicateRevisions[0].version === 1, "Duplicated section has initial revision recorded");
+
+  // 12. Reorder Sections
+  const reorderedList = await landingSectionService.reorderSections(
+    [
+      { id: duplicatedSection.id, sortOrder: 1 },
+      { id: createdSection.id, sortOrder: 2 },
+    ],
+    "test-admin-user"
+  );
+  const reorderedDup = reorderedList.find((s) => s.id === duplicatedSection.id);
+  const reorderedOrig = reorderedList.find((s) => s.id === createdSection.id);
+  assert(reorderedDup?.sortOrder === 1 && reorderedOrig?.sortOrder === 2, "Atomic section reordering completed successfully");
+
+  // 13. Soft Delete Section
+  const deletedSection = await landingSectionService.softDeleteSection(createdSection.id, "test-admin-user");
+  assert(deletedSection.deletedAt !== null && deletedSection.isPublished === false, "Section soft-deleted with timestamp and unpublished");
+
+  // 14. Public & Normal Admin Queries Hide Soft-Deleted Sections
+  const publicAfterDelete = await landingSectionService.getPublicSections();
+  assert(publicAfterDelete.find((s) => s.id === createdSection.id) === undefined, "Public query excludes soft-deleted section");
+  const adminActiveList = await landingSectionService.getAdminSections(false);
+  assert(adminActiveList.find((s) => s.id === createdSection.id) === undefined, "Normal admin list excludes soft-deleted section");
+  const adminFullList = await landingSectionService.getAdminSections(true);
+  assert(adminFullList.find((s) => s.id === createdSection.id) !== undefined, "Admin query with includeDeleted=true shows deleted section");
+
+  // 15. Restore Section
+  const restoredSection = await landingSectionService.restoreSection(createdSection.id, "test-admin-user");
+  assert(restoredSection.deletedAt === null && restoredSection.isPublished === false, "Section restored to draft status with deletedAt cleared");
+
+  // 16. Database Error Propagation & Key Uniqueness
+  let keyConflictCaught = false;
+  try {
+    await landingSectionService.createSection({
+      key: duplicateKey, // Already taken by duplicatedSection
+      type: "CTA",
+    });
+  } catch (err: any) {
+    keyConflictCaught = true;
+    assert(err.statusCode === 409 || err.code === "KEY_ALREADY_EXISTS", "Duplicate key error propagates with 409 status code");
+  }
+  assert(keyConflictCaught === true, "Database key uniqueness constraint properly enforced and caught");
+
+  let nonExistentSectionCaught = false;
+  try {
+    await landingSectionService.updateSection("non-existent-id-99999", { title: "تست" });
+  } catch (err: any) {
+    nonExistentSectionCaught = true;
+    assert(err.statusCode === 404 || err.code === "SECTION_NOT_FOUND", "Non-existent section error propagates with 404 status code");
+  }
+  assert(nonExistentSectionCaught === true, "Non-existent section error properly caught and handled");
+
+  // Cleanup test sections
+  await landingSectionService.softDeleteSection(createdSection.id);
+  await landingSectionService.softDeleteSection(duplicatedSection.id);
+
   // Summary
   console.log("\n==============================================");
   console.log(`Results: ${passedTests}/${totalTests} tests passed (${failedTests} failed)`);

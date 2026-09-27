@@ -331,3 +331,76 @@ export interface BlogPostQueryOptions {
   search?: string;
 }
 
+// -------------------------------------------------------------
+// LANDING SECTION CMS TYPES (PHASE 6)
+// -------------------------------------------------------------
+
+export type LandingSectionType =
+  | "HERO"
+  | "HERO_VIDEO"
+  | "SPLIT_CONTENT"
+  | "FEATURES"
+  | "PRODUCT_SHOWCASE"
+  | "CATEGORIES"
+  | "STATS"
+  | "STORY"
+  | "GALLERY"
+  | "FAQ"
+  | "CTA"
+  | "BANNER"
+  | "CUSTOM"
+  | string;
+
+export type LandingSectionStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+
+export interface LandingSectionDTO {
+  id: string;
+  key: string;
+  type: string;
+  status: string;
+  version: number;
+  title?: string | null;
+  subtitle?: string | null;
+  badge?: string | null;
+  contentJson?: any;
+  settingsJson?: any;
+  sortOrder: number;
+  isPublished: boolean;
+  deletedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  revisionsCount?: number;
+}
+
+export interface LandingSectionPublicDTO {
+  id: string;
+  key: string;
+  type: string;
+  title?: string | null;
+  subtitle?: string | null;
+  badge?: string | null;
+  content?: any;
+  settings?: any;
+  sortOrder: number;
+}
+
+export interface LandingSectionRevisionDTO {
+  id: string;
+  sectionId: string;
+  version: number;
+  status: string;
+  title?: string | null;
+  subtitle?: string | null;
+  badge?: string | null;
+  contentJson?: any;
+  settingsJson?: any;
+  createdById?: string | null;
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  createdAt: string;
+}
+
