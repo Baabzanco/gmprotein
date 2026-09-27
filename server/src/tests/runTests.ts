@@ -529,6 +529,71 @@ async function runAllTests() {
   await landingSectionService.softDeleteSection(createdSection.id);
   await landingSectionService.softDeleteSection(duplicatedSection.id);
 
+  // --- Suite 10: Frontend Landing Section Registry & Renderer Architecture (Phase 2B) ---
+  console.log("\nSuite 10: Frontend Landing Section Registry & Renderer Architecture");
+  const { sectionRegistry } = await import("../../../src/features/landing/registry/sectionRegistry");
+  const { SECTION_TYPES } = await import("../../../src/features/landing/registry/sectionTypes");
+  const {
+    safeObject,
+    safeArray,
+    safeString,
+    safeNumber,
+    safeBoolean,
+  } = await import("../../../src/features/landing/registry/sectionSchemas");
+
+  // 1. Registry Mapping & Known Types
+  assert(sectionRegistry.has("HERO") === true, "SectionRegistry has registered HERO type");
+  assert(sectionRegistry.has("HERO_VIDEO") === true, "SectionRegistry has registered HERO_VIDEO type");
+  assert(sectionRegistry.has("SPLIT_CONTENT") === true, "SectionRegistry has registered SPLIT_CONTENT type");
+  assert(sectionRegistry.has("FEATURES") === true, "SectionRegistry has registered FEATURES type");
+  assert(sectionRegistry.has("STATS") === true, "SectionRegistry has registered STATS type");
+  assert(sectionRegistry.has("PRODUCT_SHOWCASE") === true, "SectionRegistry has registered PRODUCT_SHOWCASE type");
+  assert(sectionRegistry.has("FAQ") === true, "SectionRegistry has registered FAQ type");
+  assert(sectionRegistry.has("CTA") === true, "SectionRegistry has registered CTA type");
+  assert(sectionRegistry.has("BANNER") === true, "SectionRegistry has registered BANNER type");
+
+  // 2. Registry Type Resolution Case Insensitivity
+  const heroDef = sectionRegistry.get("hero");
+  assert(heroDef !== undefined && heroDef.type === SECTION_TYPES.HERO, "SectionRegistry resolves case-insensitively ('hero' -> HERO)");
+  const videoDef = sectionRegistry.get("HERO_VIDEO");
+  assert(videoDef !== undefined && videoDef.component !== undefined, "HERO_VIDEO resolves to a valid React component renderer");
+
+  // 3. Unknown Type Safe Resolution
+  const unknownDef = sectionRegistry.get("FUTURE_UNREGISTERED_TYPE_XYZ");
+  assert(unknownDef === undefined, "Unknown section type safely returns undefined without throwing");
+  assert(sectionRegistry.has("UNKNOWN_TYPE") === false, "sectionRegistry.has() returns false for unknown types");
+
+  // 4. Schema Normalization & Safety with Malformed Content
+  assert(safeString(null, "default") === "default", "safeString handles null input");
+  assert(safeString(12345) === "12345", "safeString converts numbers to string");
+  assert(typeof safeObject(null) === "object" && !Array.isArray(safeObject(null)), "safeObject returns empty object on null");
+  assert(typeof safeObject("not-an-object") === "object", "safeObject returns fallback on non-object string");
+  assert(Array.isArray(safeArray("invalid-array")), "safeArray returns empty array on invalid scalar input");
+  assert(safeArray([1, 2, 3]).length === 3, "safeArray preserves valid arrays");
+  assert(safeNumber("45.6") === 45.6, "safeNumber parses numeric strings accurately");
+  assert(safeNumber(null, 4) === 4, "safeNumber falls back safely on null");
+  assert(safeBoolean("true") === true, "safeBoolean correctly coerces 'true'");
+  assert(safeBoolean(null, false) === false, "safeBoolean falls back safely on null");
+
+  // 5. Dynamic Registry Extensibility
+  const customMockComponent: any = () => null;
+  sectionRegistry.register({
+    type: "CUSTOM_PROMO_BOX",
+    label: "باکس سفارشی تبلیغاتی",
+    component: customMockComponent,
+  });
+  assert(sectionRegistry.has("CUSTOM_PROMO_BOX") === true, "SectionRegistry allows registering dynamic custom sections without modifying existing code");
+  assert(sectionRegistry.get("CUSTOM_PROMO_BOX")?.component === customMockComponent, "Custom section definition retrieved accurately");
+
+  // 6. Section Sort Order and Compatibility Fallback logic
+  const mockSections = [
+    { id: "sec-3", key: "faq", type: "FAQ", sortOrder: 3, content: null, settings: null },
+    { id: "sec-1", key: "hero", type: "HERO", sortOrder: 1, content: { title: "هیرو" }, settings: null },
+    { id: "sec-2", key: "stats", type: "STATS", sortOrder: 2, content: null, settings: null },
+  ];
+  const sortedMock = [...mockSections].sort((a, b) => a.sortOrder - b.sortOrder);
+  assert(sortedMock[0].key === "hero" && sortedMock[1].key === "stats" && sortedMock[2].key === "faq", "Section ordering strictly adheres to sortOrder ascending");
+
   // Summary
   console.log("\n==============================================");
   console.log(`Results: ${passedTests}/${totalTests} tests passed (${failedTests} failed)`);

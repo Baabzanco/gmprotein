@@ -1,0 +1,17 @@
+export const SECTION_TYPES = {
+  HERO: "HERO",
+  HERO_VIDEO: "HERO_VIDEO",
+  SPLIT_CONTENT: "SPLIT_CONTENT",
+  FEATURES: "FEATURES",
+  STATS: "STATS",
+  PRODUCT_SHOWCASE: "PRODUCT_SHOWCASE",
+  CATEGORIES: "CATEGORIES",
+  STORY: "STORY",
+  GALLERY: "GALLERY",
+  FAQ: "FAQ",
+  CTA: "CTA",
+  BANNER: "BANNER",
+  CUSTOM: "CUSTOM",
+} as const;
+
+export type SectionType = (typeof SECTION_TYPES)[keyof typeof SECTION_TYPES] | string;

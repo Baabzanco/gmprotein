@@ -8,18 +8,9 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { RouterProvider, useRouter } from "./context/RouterContext";
 import { AuthProvider } from "./context/AuthContext";
 import { Header } from "./components/layout/Header";
-import { ScrollVideoHero } from "./components/ScrollVideoHero";
-import { StorySection } from "./components/sections/StorySection";
-import { AchievementsSection } from "./components/sections/AchievementsSection";
-import { CustomersSection } from "./components/sections/CustomersSection";
-import { HowWeWorkSection } from "./components/sections/HowWeWorkSection";
-import { StoreSection } from "./components/sections/StoreSection";
+import { LandingPage } from "./features/landing";
 import { StorePage } from "./components/store/StorePage";
 import { ProductDetailPage } from "./components/products/ProductDetailPage";
-import { CampaignSection } from "./components/sections/CampaignSection";
-import { FAQSection } from "./components/sections/FAQSection";
-import { ContactSection } from "./components/sections/ContactSection";
-import { LatestBlogSection } from "./components/sections/LatestBlogSection";
 import { BlogListPage } from "./components/blog/BlogListPage";
 import { BlogPostPage } from "./components/blog/BlogPostPage";
 import { Footer } from "./components/layout/Footer";
@@ -101,37 +92,9 @@ function MainContent() {
       */}
       <Header />
 
-      {/* Main Content Area structured in exact requested sequence */}
+      {/* Main Content Area structured in dynamic Registry / Compatibility sequence */}
       <main className="flex-1 w-full">
-        {/* 1. Cinematic Hero (ScrollVideoHero preserved with full behavior) */}
-        <ScrollVideoHero />
-
-        {/* 2. Brand Story (داستان پروتئین گلمحمدی) */}
-        <StorySection />
-
-        {/* 3. Achievements (دستاوردهای ما) */}
-        <AchievementsSection />
-
-        {/* 4. Customers (مشتریان ما) */}
-        <CustomersSection />
-
-        {/* 5. How We Work (شیوه همکاری با ما) */}
-        <HowWeWorkSection />
-
-        {/* 6. Online Store (فروشگاه اینترنتی با فرم استعلام پیش‌فاکتور) */}
-        <StoreSection />
-
-        {/* 7. Seasonal Campaign (پیشنهادهای ویژه فصل) */}
-        <CampaignSection />
-
-        {/* 8. FAQ (سوالات متداول) */}
-        <FAQSection />
-
-        {/* 9. Contact Request (درخواست تماس) */}
-        <ContactSection />
-
-        {/* 10. Latest Blog Posts (جدیدترین مقالات و اخبار) */}
-        <LatestBlogSection />
+        <LandingPage />
       </main>
 
       {/* Footer */}
